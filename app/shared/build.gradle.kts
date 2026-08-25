@@ -29,7 +29,7 @@ kotlin {
     }
     
     android {
-       namespace = "com.shchotkina.readshelf.app.shared"
+       namespace = "ua.readshelf.app.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

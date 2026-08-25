@@ -3,10 +3,10 @@ plugins {
     alias(libs.plugins.ktor)
 }
 
-group = "com.shchotkina.readshelf"
+group = "ua.readshelf"
 version = "1.0.0"
 application {
-    mainClass = "com.shchotkina.readshelf.ApplicationKt"
+    mainClass = "ua.readshelf.ApplicationKt"
 }
 
 dependencies {

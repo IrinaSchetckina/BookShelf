@@ -22,7 +22,7 @@ kotlin {
     }
     
     android {
-       namespace = "com.shchotkina.readshelf.core"
+       namespace = "ua.readshelf.core"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

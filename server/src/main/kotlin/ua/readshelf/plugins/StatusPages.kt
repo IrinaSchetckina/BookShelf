@@ -9,6 +9,8 @@ import io.ktor.server.plugins.ContentTransformationException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
@@ -49,6 +51,34 @@ fun Application.configureStatusPages() {
                     "Request body must be sent as ${ContentType.Application.Json}",
                     ErrorCodes.UNSUPPORTED_MEDIA_TYPE,
                 ),
+            )
+        }
+
+        // Ktor answers these itself, with no body at all, so a client that always
+        // parses ErrorResponseDto trips over them. Written as text with an explicit
+        // JSON type rather than through respond(): a 406 means negotiation already
+        // failed, and going back through it would fail the same way.
+        status(
+            HttpStatusCode.NotFound,
+            HttpStatusCode.MethodNotAllowed,
+            HttpStatusCode.NotAcceptable,
+        ) { call, status ->
+            val error = when (status) {
+                HttpStatusCode.NotFound ->
+                    ErrorResponseDto("No such endpoint", ErrorCodes.NOT_FOUND)
+
+                HttpStatusCode.MethodNotAllowed ->
+                    ErrorResponseDto("That method is not allowed on this endpoint", ErrorCodes.METHOD_NOT_ALLOWED)
+
+                else ->
+                    ErrorResponseDto("This endpoint only answers with ${ContentType.Application.Json}",
+                        ErrorCodes.NOT_ACCEPTABLE)
+            }
+
+            call.respondText(
+                text = Json.encodeToString(ErrorResponseDto.serializer(), error),
+                contentType = ContentType.Application.Json,
+                status = status,
             )
         }
     }

@@ -26,7 +26,9 @@ dependencies {
     implementation(libs.koin.ktor)
     implementation(libs.koin.loggerSlf4j)
     implementation(libs.bcrypt)
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.ktor.clientMock)
     testImplementation(libs.kotlin.testJunit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

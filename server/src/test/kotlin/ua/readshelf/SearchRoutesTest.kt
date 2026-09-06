@@ -63,7 +63,7 @@ class SearchRoutesTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
-        application { module(openLibraryOverride(engine)) }
+        application { module(testAuthModule(), openLibraryOverride(engine)) }
 
         val response = client.get("/search?q=dune&limit=5")
 
@@ -92,7 +92,7 @@ class SearchRoutesTest {
     @Test
     fun `rejects a blank query with 400`() = testApplication {
         val engine = MockEngine { error("Open Library must not be called for a blank query") }
-        application { module(openLibraryOverride(engine)) }
+        application { module(testAuthModule(), openLibraryOverride(engine)) }
 
         assertEquals(HttpStatusCode.BadRequest, client.get("/search?q=").status)
         assertEquals(HttpStatusCode.BadRequest, client.get("/search?q=%20%20").status)
@@ -102,7 +102,7 @@ class SearchRoutesTest {
     @Test
     fun `maps an upstream failure to 502`() = testApplication {
         val engine = MockEngine { respondError(HttpStatusCode.InternalServerError) }
-        application { module(openLibraryOverride(engine)) }
+        application { module(testAuthModule(), openLibraryOverride(engine)) }
 
         assertEquals(HttpStatusCode.BadGateway, client.get("/search?q=dune").status)
     }
@@ -117,7 +117,7 @@ class SearchRoutesTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
-        application { module(openLibraryOverride(engine)) }
+        application { module(testAuthModule(), openLibraryOverride(engine)) }
 
         client.get("/search?q=dune&limit=999")
 

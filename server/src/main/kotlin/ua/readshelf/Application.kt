@@ -11,10 +11,18 @@ import org.koin.core.module.Module
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
+import ua.readshelf.auth.AuthConfig
+import ua.readshelf.auth.AuthService
+import ua.readshelf.auth.JwtService
+import ua.readshelf.auth.UserRepository
 import ua.readshelf.data.remote.OpenLibraryClient
 import ua.readshelf.di.serverModule
 import ua.readshelf.plugins.configureCors
+import ua.readshelf.plugins.configureSecurity
 import ua.readshelf.plugins.configureSerialization
+import ua.readshelf.plugins.configureStatusPages
+import ua.readshelf.routes.authRoutes
+import ua.readshelf.routes.meRoute
 import ua.readshelf.routes.searchRoutes
 
 fun main() {
@@ -33,13 +41,21 @@ fun Application.module(vararg overrides: Module) {
     }
 
     val openLibraryClient by inject<OpenLibraryClient>()
+    val authConfig by inject<AuthConfig>()
+    val authService by inject<AuthService>()
+    val jwtService by inject<JwtService>()
+    val userRepository by inject<UserRepository>()
 
     configureSerialization()
+    configureStatusPages()
     configureCors()
+    configureSecurity(authConfig, jwtService)
     routing {
         get("/") {
             call.respondText(sayHello("Ktor"))
         }
         searchRoutes(openLibraryClient)
+        authRoutes(authService)
+        meRoute(userRepository)
     }
 }

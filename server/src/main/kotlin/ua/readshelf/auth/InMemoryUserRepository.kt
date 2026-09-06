@@ -18,12 +18,17 @@ class InMemoryUserRepository(
     private val mutex = Mutex()
     private val usersByEmail = mutableMapOf<String, UserRecord>()
 
+    // Second index rather than a scan of the first: findById runs on every
+    // authenticated request, and a scan would hold the one lock for longer the
+    // more users exist, putting logins and registrations behind it.
+    private val usersById = mutableMapOf<String, UserRecord>()
+
     override suspend fun findByEmail(email: String): UserRecord? = mutex.withLock {
         usersByEmail[normalizeEmail(email)]
     }
 
     override suspend fun findById(id: String): UserRecord? = mutex.withLock {
-        usersByEmail.values.firstOrNull { it.id == id }
+        usersById[id]
     }
 
     override suspend fun create(email: String, passwordHash: String): UserRecord? = mutex.withLock {
@@ -32,6 +37,7 @@ class InMemoryUserRepository(
 
         val user = UserRecord(id = generateId(), email = normalized, passwordHash = passwordHash)
         usersByEmail[normalized] = user
+        usersById[user.id] = user
         user
     }
 }

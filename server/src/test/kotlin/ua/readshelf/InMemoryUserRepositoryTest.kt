@@ -37,6 +37,19 @@ class InMemoryUserRepositoryTest {
     }
 
     @Test
+    fun `keeps both indexes in step`() = runTest {
+        val repository = InMemoryUserRepository()
+        val first = assertNotNull(repository.create("one@example.com", "hash"))
+        val second = assertNotNull(repository.create("two@example.com", "hash"))
+
+        // Two maps mean two chances to forget one of them.
+        assertEquals(first, repository.findById(first.id))
+        assertEquals(second, repository.findById(second.id))
+        assertEquals(first, repository.findByEmail("one@example.com"))
+        assertNull(repository.create("ONE@example.com", "hash"))
+    }
+
+    @Test
     fun `returns null for an unknown user`() = runTest {
         val repository = InMemoryUserRepository()
 

@@ -23,7 +23,9 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Web, Server.
 Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
 
 - Android app: `./gradlew :app:androidApp:assembleDebug`
-- Server: `./gradlew :server:run`
+- Server: `JWT_SECRET=dev-secret ./gradlew :server:run`
+  The server refuses to start without `JWT_SECRET`: it signs the auth tokens, so there is
+  deliberately no built-in fallback. Registered users live in memory and are gone on restart.
 - Web app:
   - Wasm target (faster, modern browsers): `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
   - JS target (slower, supports older browsers): `./gradlew :app:webApp:jsBrowserDevelopmentRun`

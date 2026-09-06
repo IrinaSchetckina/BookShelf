@@ -33,6 +33,10 @@ class AuthService(
         if (normalizedEmail.isEmpty() || password.isEmpty()) {
             return AuthResult.ValidationFailed("Email and password must not be blank")
         }
+        // Not a password policy check — login deliberately leaves those to the
+        // 401 below. This is the one input BCrypt cannot process at all, and
+        // without it the hasher throws and the caller gets a 500.
+        tooLongToHash(password)?.let { return it }
 
         val user = userRepository.findByEmail(normalizedEmail)
 
@@ -55,11 +59,16 @@ class AuthService(
         password.length < MIN_PASSWORD_LENGTH ->
             AuthResult.ValidationFailed("Password must be at least $MIN_PASSWORD_LENGTH characters long")
 
-        password.toByteArray().size > MAX_PASSWORD_BYTES ->
-            AuthResult.ValidationFailed("Password must not be longer than $MAX_PASSWORD_BYTES bytes")
-
-        else -> null
+        else -> tooLongToHash(password)
     }
+
+    /** Shared by both paths on purpose: a limit only one of them knows is a 500 waiting to happen. */
+    private fun tooLongToHash(password: String): AuthResult.ValidationFailed? =
+        if (password.toByteArray().size > MAX_PASSWORD_BYTES) {
+            AuthResult.ValidationFailed("Password must not be longer than $MAX_PASSWORD_BYTES bytes")
+        } else {
+            null
+        }
 
     companion object {
         /** Never a real password: it only exists to give [absentUserHash] something to hash. */

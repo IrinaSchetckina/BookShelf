@@ -59,6 +59,12 @@ class AuthService(
     }
 
     private fun validateCredentials(normalizedEmail: String, password: String): AuthResult.ValidationFailed? = when {
+        normalizedEmail.length > MAX_EMAIL_LENGTH ->
+            AuthResult.ValidationFailed(
+                "Email address must not be longer than $MAX_EMAIL_LENGTH characters",
+                field = "email",
+            )
+
         !isPlausibleEmail(normalizedEmail) ->
             AuthResult.ValidationFailed("Email address is not valid", field = "email")
 
@@ -92,6 +98,12 @@ class AuthService(
     companion object {
         /** Never a real password: it only exists to give [absentUserHash] something to hash. */
         private const val ABSENT_USER_PASSWORD = "absent-user-placeholder"
+
+        /**
+         * The longest address SMTP will carry (RFC 5321). Without a bound the
+         * address is stored whole, and a megabyte of it sits in the map forever.
+         */
+        const val MAX_EMAIL_LENGTH: Int = 254
 
         const val MIN_PASSWORD_LENGTH: Int = 8
 

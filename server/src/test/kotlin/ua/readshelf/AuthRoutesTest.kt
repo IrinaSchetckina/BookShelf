@@ -137,6 +137,31 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `rejects an email longer than smtp will carry`() = testApplication {
+        application { module(testAuthModule()) }
+
+        // Without a bound the whole address is stored, and a huge one sits in the
+        // user map for as long as the process lives.
+        val response = register(email = "a".repeat(250) + "@example.com")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals("email", json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).field)
+    }
+
+    @Test
+    fun `turns away an oversized body before reading it`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val padding = "a".repeat(100_000)
+        val response = client.post("/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody("{\"email\":\"reader@example.com\",\"password\":\"$padding\"}")
+        }
+
+        assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
+    }
+
+    @Test
     fun `rejects a password longer than bcrypt can hash`() = testApplication {
         application { module(testAuthModule()) }
 

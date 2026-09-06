@@ -134,6 +134,22 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `rejects a request without a json content type`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val response = client.post("/auth/register") {
+            setBody("""{"email":"reader@example.com","password":"password1"}""")
+        }
+
+        assertEquals(HttpStatusCode.UnsupportedMediaType, response.status)
+        // Ktor's own answer is a raw string naming the DTO class; ours has to parse
+        // as the error contract every client already handles.
+        val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
+        assertTrue(message.isNotBlank(), "actual body: ${response.bodyAsText()}")
+        assertFalse("Dto" in response.bodyAsText(), "internal class name leaked: ${response.bodyAsText()}")
+    }
+
+    @Test
     fun `logs in with valid credentials`() = testApplication {
         application { module(testAuthModule()) }
         register()

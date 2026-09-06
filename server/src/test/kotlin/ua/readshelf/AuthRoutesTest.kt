@@ -22,6 +22,7 @@ import ua.readshelf.contract.UserDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -203,6 +204,20 @@ class AuthRoutesTest {
         assertEquals(HttpStatusCode.Unauthorized, response.status)
         val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
         assertTrue(message.isNotBlank(), "the challenge must explain itself, got an empty body")
+    }
+
+    @Test
+    fun `tells the client which scheme to authenticate with`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val response = client.get("/me")
+
+        // RFC 9110 requires WWW-Authenticate on a 401. Replacing Ktor's default
+        // challenge to get a useful body is what drops it, so it has to be put back.
+        val header = response.headers[HttpHeaders.WWWAuthenticate]
+        assertNotNull(header, "401 came back with no WWW-Authenticate")
+        assertTrue(header.startsWith("Bearer"), "actual header: $header")
+        assertTrue("realm=" in header, "actual header: $header")
     }
 
     @Test

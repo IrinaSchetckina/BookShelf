@@ -21,6 +21,7 @@ import ua.readshelf.contract.RegisterRequestDto
 import ua.readshelf.contract.UserDto
 import ua.readshelf.domain.User
 import ua.readshelf.plugins.JWT_AUTH
+import ua.readshelf.plugins.MISSING_OR_INVALID_TOKEN
 
 fun Route.authRoutes(authService: AuthService) {
     route("/auth") {
@@ -51,7 +52,7 @@ fun Route.meRoute(userRepository: UserRepository) {
             val user = userId?.let { userRepository.findById(it) }
                 ?: return@get call.respond(
                     HttpStatusCode.Unauthorized,
-                    ErrorResponseDto("Missing or invalid authentication token"),
+                    ErrorResponseDto(MISSING_OR_INVALID_TOKEN),
                 )
 
             call.respond(UserDto(id = user.id, email = user.email))

@@ -10,6 +10,14 @@ class AuthService(
     private val passwordHasher: PasswordHasher,
     private val jwtService: JwtService,
 ) {
+    /**
+     * Hashed once at startup so [login] can spend the same time verifying an
+     * address nobody registered as it does verifying a real one. Built with the
+     * configured hasher rather than hardcoded, so its cost factor always matches
+     * the real hashes it stands in for.
+     */
+    private val absentUserHash: String = passwordHasher.hash(ABSENT_USER_PASSWORD)
+
     suspend fun register(email: String, password: String): AuthResult {
         val normalizedEmail = normalizeEmail(email)
         validateCredentials(normalizedEmail, password)?.let { return it }
@@ -27,9 +35,13 @@ class AuthService(
         }
 
         val user = userRepository.findByEmail(normalizedEmail)
-        // Hash comparison runs only for a known address; the answer is the same
-        // either way so the endpoint does not reveal who is registered.
-        if (user == null || !passwordHasher.verify(password, user.passwordHash)) {
+
+        // Verify runs exactly once whether or not the address exists. Skipping it
+        // for an unknown address would answer noticeably faster, and that timing
+        // difference tells an attacker who is registered just as plainly as
+        // separate error messages would.
+        val passwordMatches = passwordHasher.verify(password, user?.passwordHash ?: absentUserHash)
+        if (user == null || !passwordMatches) {
             return AuthResult.InvalidCredentials
         }
 
@@ -50,6 +62,9 @@ class AuthService(
     }
 
     companion object {
+        /** Never a real password: it only exists to give [absentUserHash] something to hash. */
+        private const val ABSENT_USER_PASSWORD = "absent-user-placeholder"
+
         const val MIN_PASSWORD_LENGTH: Int = 8
 
         /**

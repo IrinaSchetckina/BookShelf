@@ -9,8 +9,8 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Web, Server.
   - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
     For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
     the [iosMain](./app/shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./app/shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+    There is no `jvmMain`: `:app:shared` targets Android, iOS, JS and Wasm only, which is also why the
+    shared tests run as `:app:shared:testAndroidHostTest` rather than `jvmTest`.
 
 * [/core](./core/src) is for the code that will be shared between all targets in the project.
   The most important subfolder is [commonMain](./core/src/commonMain/kotlin). If preferred, you

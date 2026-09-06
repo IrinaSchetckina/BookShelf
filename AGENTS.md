@@ -11,9 +11,11 @@
 - `:app:webApp` — тонка Web точка входу; збирається під обидва таргети (Wasm і JS), спільний код у `webMain`.
 - `app/iosApp` — Xcode-проєкт, точка входу iOS (не Gradle-модуль).
 - `:server` — Ktor-бекенд: проксі до Open Library, авторизація, полиці, PostgreSQL.
-  Авторизація: JWT, секрет із env `JWT_SECRET` (без нього сервер не стартує), паролі — BCrypt,
+  Авторизація: JWT, секрет із env `JWT_SECRET` (без нього сервер не стартує), паролі — BCrypt
+  (хешування — у `Dispatchers.Default`, не на потоках запиту),
   користувачі поки що in-memory. Серверні типи з паролем (`UserRecord`, `UserRepository`) живуть
-  у `:server`, бо `:core` компілюється в клієнти.
+  у `:server`, бо `:core` компілюється в клієнти. CORS у проді — список origin-ів із
+  `CORS_ALLOWED_ORIGINS`; тіла запитів на auth-роутах не логуємо (виняток розбору JSON цитує пароль).
 
 ## Технологічні рішення
 - Мова: Kotlin, строго. Без `!!` та зайвих `any`-подібних обходів типів.
@@ -33,10 +35,12 @@
 ## Неймінг
 - Пакети: `ua.readshelf.<layer>` (напр. `ua.readshelf.data.remote`, `ua.readshelf.domain`).
 - DTO — суфікс `Dto` (`BookDto`); domain — без суфікса (`Book`).
-- Репозиторії: інтерфейс `BookRepository` у `core`, реалізація `BookRepositoryImpl` у `shared`.
+- Репозиторії, спільні з клієнтами: інтерфейс `BookRepository` у `core`, реалізація `BookRepositoryImpl` у `shared`.
+  **Суто серверні — цілком у `:server`** (інтерфейс `UserRepository` і `InMemoryUserRepository` поруч,
+  у `ua.readshelf.auth`): вони оперують хешем пароля, а `:core` компілюється в клієнти.
 
 ## Команди
-- Бекенд: `./gradlew :server:run` (localhost:8080)
+- Бекенд: `JWT_SECRET=dev-secret ./gradlew :server:run` (localhost:8080; без секрету не стартує)
 - Web: `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
 - Android: запуск із IDE (`:app:androidApp`)
 - iOS: із Xcode/IDE (потрібен Xcode 26+)

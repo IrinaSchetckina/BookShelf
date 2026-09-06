@@ -19,6 +19,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import io.ktor.client.HttpClient
+import org.koin.core.module.Module
+import org.koin.dsl.module
 
 private val OPEN_LIBRARY_PAYLOAD = """
     {
@@ -44,6 +46,11 @@ private fun mockOpenLibraryClient(engine: MockEngine): OpenLibraryClient =
         },
     )
 
+/** Replaces the real Open Library client in the backend's Koin graph. */
+private fun openLibraryOverride(engine: MockEngine): Module = module {
+    single { mockOpenLibraryClient(engine) }
+}
+
 class SearchRoutesTest {
 
     @Test
@@ -56,7 +63,7 @@ class SearchRoutesTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
-        application { module(mockOpenLibraryClient(engine)) }
+        application { module(openLibraryOverride(engine)) }
 
         val response = client.get("/search?q=dune&limit=5")
 
@@ -85,7 +92,7 @@ class SearchRoutesTest {
     @Test
     fun `rejects a blank query with 400`() = testApplication {
         val engine = MockEngine { error("Open Library must not be called for a blank query") }
-        application { module(mockOpenLibraryClient(engine)) }
+        application { module(openLibraryOverride(engine)) }
 
         assertEquals(HttpStatusCode.BadRequest, client.get("/search?q=").status)
         assertEquals(HttpStatusCode.BadRequest, client.get("/search?q=%20%20").status)
@@ -95,7 +102,7 @@ class SearchRoutesTest {
     @Test
     fun `maps an upstream failure to 502`() = testApplication {
         val engine = MockEngine { respondError(HttpStatusCode.InternalServerError) }
-        application { module(mockOpenLibraryClient(engine)) }
+        application { module(openLibraryOverride(engine)) }
 
         assertEquals(HttpStatusCode.BadGateway, client.get("/search?q=dune").status)
     }
@@ -110,7 +117,7 @@ class SearchRoutesTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
             )
         }
-        application { module(mockOpenLibraryClient(engine)) }
+        application { module(openLibraryOverride(engine)) }
 
         client.get("/search?q=dune&limit=999")
 

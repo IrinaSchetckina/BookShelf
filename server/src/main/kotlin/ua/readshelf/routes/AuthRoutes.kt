@@ -15,6 +15,7 @@ import ua.readshelf.auth.AuthService
 import ua.readshelf.auth.JwtService
 import ua.readshelf.auth.UserRepository
 import ua.readshelf.contract.AuthResponseDto
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 import ua.readshelf.contract.LoginRequestDto
 import ua.readshelf.contract.RegisterRequestDto
@@ -52,7 +53,7 @@ fun Route.meRoute(userRepository: UserRepository) {
             val user = userId?.let { userRepository.findById(it) }
                 ?: return@get call.respond(
                     HttpStatusCode.Unauthorized,
-                    ErrorResponseDto(MISSING_OR_INVALID_TOKEN),
+                    ErrorResponseDto(MISSING_OR_INVALID_TOKEN, ErrorCodes.UNAUTHENTICATED),
                 )
 
             call.respond(UserDto(id = user.id, email = user.email))
@@ -71,19 +72,19 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondToAuthResu
 
     is AuthResult.ValidationFailed -> respond(
         HttpStatusCode.BadRequest,
-        ErrorResponseDto(result.message),
+        ErrorResponseDto(result.message, ErrorCodes.VALIDATION_FAILED, result.field),
     )
 
     AuthResult.EmailAlreadyTaken -> respond(
         HttpStatusCode.Conflict,
-        ErrorResponseDto("This email address is already registered"),
+        ErrorResponseDto("This email address is already registered", ErrorCodes.EMAIL_TAKEN, field = "email"),
     )
 
     // Same answer for an unknown address and a wrong password, so the endpoint
     // cannot be used to enumerate who has an account.
     AuthResult.InvalidCredentials -> respond(
         HttpStatusCode.Unauthorized,
-        ErrorResponseDto("Invalid email or password"),
+        ErrorResponseDto("Invalid email or password", ErrorCodes.INVALID_CREDENTIALS),
     )
 }
 

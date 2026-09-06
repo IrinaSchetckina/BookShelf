@@ -17,6 +17,7 @@ import ua.readshelf.auth.AuthConfig
 import ua.readshelf.auth.JwtService
 import ua.readshelf.auth.UserRecord
 import ua.readshelf.contract.AuthResponseDto
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 import ua.readshelf.contract.UserDto
 import kotlin.test.Test
@@ -97,8 +98,42 @@ class AuthRoutesTest {
         val response = register(password = "short")
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
-        val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
-        assertTrue("8" in message, "actual message: $message")
+        val error = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText())
+        assertTrue("8" in error.message, "actual message: ${error.message}")
+        // A client branches on the code and highlights the named input; matching the
+        // English sentence would break the first time it is reworded or translated.
+        assertEquals(ErrorCodes.VALIDATION_FAILED, error.code)
+        assertEquals("password", error.field)
+    }
+
+    @Test
+    fun `names the offending field on an invalid email`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val error = json.decodeFromString(
+            ErrorResponseDto.serializer(),
+            register(email = "not-an-email").bodyAsText(),
+        )
+
+        assertEquals(ErrorCodes.VALIDATION_FAILED, error.code)
+        assertEquals("email", error.field)
+    }
+
+    @Test
+    fun `codes a duplicate email and a bad login`() = testApplication {
+        application { module(testAuthModule()) }
+        register()
+
+        val duplicate = json.decodeFromString(ErrorResponseDto.serializer(), register().bodyAsText())
+        val badLogin = json.decodeFromString(
+            ErrorResponseDto.serializer(),
+            login(password = "wrong-password").bodyAsText(),
+        )
+        val noToken = json.decodeFromString(ErrorResponseDto.serializer(), client.get("/me").bodyAsText())
+
+        assertEquals(ErrorCodes.EMAIL_TAKEN, duplicate.code)
+        assertEquals(ErrorCodes.INVALID_CREDENTIALS, badLogin.code)
+        assertEquals(ErrorCodes.UNAUTHENTICATED, noToken.code)
     }
 
     @Test

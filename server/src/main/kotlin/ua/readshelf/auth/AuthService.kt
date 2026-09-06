@@ -37,7 +37,7 @@ class AuthService(
     suspend fun login(email: String, password: String): AuthResult {
         val normalizedEmail = normalizeEmail(email)
         if (normalizedEmail.isEmpty() || password.isEmpty()) {
-            return AuthResult.ValidationFailed("Email and password must not be blank")
+            return AuthResult.ValidationFailed("Email and password must not be blank", field = null)
         }
         // Not a password policy check — login deliberately leaves those to the
         // 401 below. This is the one input BCrypt cannot process at all, and
@@ -60,10 +60,13 @@ class AuthService(
 
     private fun validateCredentials(normalizedEmail: String, password: String): AuthResult.ValidationFailed? = when {
         !isPlausibleEmail(normalizedEmail) ->
-            AuthResult.ValidationFailed("Email address is not valid")
+            AuthResult.ValidationFailed("Email address is not valid", field = "email")
 
         password.length < MIN_PASSWORD_LENGTH ->
-            AuthResult.ValidationFailed("Password must be at least $MIN_PASSWORD_LENGTH characters long")
+            AuthResult.ValidationFailed(
+                "Password must be at least $MIN_PASSWORD_LENGTH characters long",
+                field = "password",
+            )
 
         else -> tooLongToHash(password)
     }
@@ -78,7 +81,10 @@ class AuthService(
     /** Shared by both paths on purpose: a limit only one of them knows is a 500 waiting to happen. */
     private fun tooLongToHash(password: String): AuthResult.ValidationFailed? =
         if (password.toByteArray().size > MAX_PASSWORD_BYTES) {
-            AuthResult.ValidationFailed("Password must not be longer than $MAX_PASSWORD_BYTES bytes")
+            AuthResult.ValidationFailed(
+                "Password must not be longer than $MAX_PASSWORD_BYTES bytes",
+                field = "password",
+            )
         } else {
             null
         }
@@ -99,7 +105,7 @@ class AuthService(
 
 sealed interface AuthResult {
     data class Success(val user: User, val token: String) : AuthResult
-    data class ValidationFailed(val message: String) : AuthResult
+    data class ValidationFailed(val message: String, val field: String?) : AuthResult
     data object EmailAlreadyTaken : AuthResult
     data object InvalidCredentials : AuthResult
 }

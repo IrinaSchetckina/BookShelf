@@ -12,6 +12,7 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import ua.readshelf.auth.AuthConfig
 import ua.readshelf.auth.JwtService
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 
 const val JWT_AUTH: String = "auth-jwt"
@@ -41,7 +42,10 @@ fun Application.configureSecurity(config: AuthConfig, jwtService: JwtService) {
                     HttpAuthHeader.Parameterized(defaultScheme, mapOf(HttpAuthHeader.Parameters.Realm to realm))
                         .render(),
                 )
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponseDto(MISSING_OR_INVALID_TOKEN))
+                call.respond(
+                    HttpStatusCode.Unauthorized,
+                    ErrorResponseDto(MISSING_OR_INVALID_TOKEN, ErrorCodes.UNAUTHENTICATED),
+                )
             }
         }
     }

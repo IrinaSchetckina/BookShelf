@@ -10,6 +10,7 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import org.slf4j.LoggerFactory
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 
 /**
@@ -29,7 +30,7 @@ fun Application.configureStatusPages() {
         // and looks like the backend fell over.
         exception<BadRequestException> { call, cause ->
             logger.debug("Rejected a malformed request body on {}: {}", call.request.path(), cause::class.simpleName)
-            call.respond(HttpStatusCode.BadRequest, ErrorResponseDto("Request body is malformed"))
+            call.respond(HttpStatusCode.BadRequest, ErrorResponseDto("Request body is malformed", ErrorCodes.MALFORMED_BODY))
         }
 
         // A body Ktor cannot even attempt to deserialize, typically because the
@@ -44,7 +45,10 @@ fun Application.configureStatusPages() {
             )
             call.respond(
                 HttpStatusCode.UnsupportedMediaType,
-                ErrorResponseDto("Request body must be sent as ${ContentType.Application.Json}"),
+                ErrorResponseDto(
+                    "Request body must be sent as ${ContentType.Application.Json}",
+                    ErrorCodes.UNSUPPORTED_MEDIA_TYPE,
+                ),
             )
         }
     }

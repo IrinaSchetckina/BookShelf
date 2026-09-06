@@ -4,6 +4,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 import ua.readshelf.contract.SearchResponseDto
 import ua.readshelf.data.remote.OpenLibraryClient
@@ -18,7 +19,7 @@ fun Route.searchRoutes(openLibraryClient: OpenLibraryClient) {
         if (query.isEmpty()) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                ErrorResponseDto("Query parameter 'q' must not be blank"),
+                ErrorResponseDto("Query parameter 'q' must not be blank", ErrorCodes.VALIDATION_FAILED, field = "q"),
             )
             return@get
         }
@@ -33,7 +34,10 @@ fun Route.searchRoutes(openLibraryClient: OpenLibraryClient) {
                 call.application.environment.log.warn("Open Library search failed for '$query'", error)
                 call.respond(
                     HttpStatusCode.BadGateway,
-                    ErrorResponseDto("Book catalogue is unavailable, please try again later"),
+                    ErrorResponseDto(
+                        "Book catalogue is unavailable, please try again later",
+                        ErrorCodes.UPSTREAM_UNAVAILABLE,
+                    ),
                 )
                 return@get
             }

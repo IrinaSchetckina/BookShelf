@@ -108,6 +108,20 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `rejects a login password longer than bcrypt can hash`() = testApplication {
+        application { module(testAuthModule()) }
+        register()
+
+        // Reaching the hasher with this would throw and surface as a 500, i.e. our
+        // bug rather than the caller's, so it has to be rejected before that.
+        val response = login(password = "a".repeat(73))
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
+        assertTrue("72" in message, "actual message: $message")
+    }
+
+    @Test
     fun `rejects a malformed body with 400`() = testApplication {
         application { module(testAuthModule()) }
 
@@ -117,6 +131,22 @@ class AuthRoutesTest {
         }
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `rejects a request without a json content type`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val response = client.post("/auth/register") {
+            setBody("""{"email":"reader@example.com","password":"password1"}""")
+        }
+
+        assertEquals(HttpStatusCode.UnsupportedMediaType, response.status)
+        // Ktor's own answer is a raw string naming the DTO class; ours has to parse
+        // as the error contract every client already handles.
+        val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
+        assertTrue(message.isNotBlank(), "actual body: ${response.bodyAsText()}")
+        assertFalse("Dto" in response.bodyAsText(), "internal class name leaked: ${response.bodyAsText()}")
     }
 
     @Test

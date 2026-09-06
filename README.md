@@ -9,8 +9,8 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Web, Server.
   - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
     For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
     the [iosMain](./app/shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./app/shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+    There is no `jvmMain`: `:app:shared` targets Android, iOS, JS and Wasm only, which is also why the
+    shared tests run as `:app:shared:testAndroidHostTest` rather than `jvmTest`.
 
 * [/core](./core/src) is for the code that will be shared between all targets in the project.
   The most important subfolder is [commonMain](./core/src/commonMain/kotlin). If preferred, you
@@ -26,6 +26,9 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
 - Server: `JWT_SECRET=dev-secret ./gradlew :server:run`
   The server refuses to start without `JWT_SECRET`: it signs the auth tokens, so there is
   deliberately no built-in fallback. Registered users live in memory and are gone on restart.
+  Set `CORS_ALLOWED_ORIGINS` (comma-separated, e.g. `https://readshelf.app`) when deploying;
+  unset means development and admits only localhost, so a deployment that forgets it fails
+  closed rather than opening the API to every site.
 - Web app:
   - Wasm target (faster, modern browsers): `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
   - JS target (slower, supports older browsers): `./gradlew :app:webApp:jsBrowserDevelopmentRun`

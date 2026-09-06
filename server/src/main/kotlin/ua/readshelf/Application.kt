@@ -19,6 +19,8 @@ import ua.readshelf.data.remote.OpenLibraryClient
 import ua.readshelf.di.serverModule
 import ua.readshelf.plugins.configureCors
 import ua.readshelf.plugins.configureSecurity
+import ua.readshelf.plugins.configureRateLimits
+import ua.readshelf.plugins.configureRequestSizeLimit
 import ua.readshelf.plugins.configureSerialization
 import ua.readshelf.plugins.configureStatusPages
 import ua.readshelf.routes.authRoutes
@@ -48,6 +50,8 @@ fun Application.module(vararg overrides: Module) {
 
     configureSerialization()
     configureStatusPages()
+    configureRequestSizeLimit()
+    configureRateLimits()
     configureCors()
     configureSecurity(authConfig, jwtService)
     routing {

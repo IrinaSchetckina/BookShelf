@@ -1,5 +1,7 @@
 package ua.readshelf.auth
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ua.readshelf.domain.User
 
 /**
@@ -15,6 +17,9 @@ class AuthService(
      * address nobody registered as it does verifying a real one. Built with the
      * configured hasher rather than hardcoded, so its cost factor always matches
      * the real hashes it stands in for.
+     *
+     * Blocking here is fine, unlike in the request paths below: this runs while
+     * the Koin graph is being built, before the server accepts anything.
      */
     private val absentUserHash: String = passwordHasher.hash(ABSENT_USER_PASSWORD)
 
@@ -22,7 +27,8 @@ class AuthService(
         val normalizedEmail = normalizeEmail(email)
         validateCredentials(normalizedEmail, password)?.let { return it }
 
-        val user = userRepository.create(normalizedEmail, passwordHasher.hash(password))
+        val passwordHash = hashing { passwordHasher.hash(password) }
+        val user = userRepository.create(normalizedEmail, passwordHash)
             ?: return AuthResult.EmailAlreadyTaken
 
         return AuthResult.Success(user.toDomain(), jwtService.issueToken(user))
@@ -31,7 +37,7 @@ class AuthService(
     suspend fun login(email: String, password: String): AuthResult {
         val normalizedEmail = normalizeEmail(email)
         if (normalizedEmail.isEmpty() || password.isEmpty()) {
-            return AuthResult.ValidationFailed("Email and password must not be blank")
+            return AuthResult.ValidationFailed("Email and password must not be blank", field = null)
         }
         // Not a password policy check — login deliberately leaves those to the
         // 401 below. This is the one input BCrypt cannot process at all, and
@@ -44,7 +50,7 @@ class AuthService(
         // for an unknown address would answer noticeably faster, and that timing
         // difference tells an attacker who is registered just as plainly as
         // separate error messages would.
-        val passwordMatches = passwordHasher.verify(password, user?.passwordHash ?: absentUserHash)
+        val passwordMatches = hashing { passwordHasher.verify(password, user?.passwordHash ?: absentUserHash) }
         if (user == null || !passwordMatches) {
             return AuthResult.InvalidCredentials
         }
@@ -53,19 +59,38 @@ class AuthService(
     }
 
     private fun validateCredentials(normalizedEmail: String, password: String): AuthResult.ValidationFailed? = when {
+        normalizedEmail.length > MAX_EMAIL_LENGTH ->
+            AuthResult.ValidationFailed(
+                "Email address must not be longer than $MAX_EMAIL_LENGTH characters",
+                field = "email",
+            )
+
         !isPlausibleEmail(normalizedEmail) ->
-            AuthResult.ValidationFailed("Email address is not valid")
+            AuthResult.ValidationFailed("Email address is not valid", field = "email")
 
         password.length < MIN_PASSWORD_LENGTH ->
-            AuthResult.ValidationFailed("Password must be at least $MIN_PASSWORD_LENGTH characters long")
+            AuthResult.ValidationFailed(
+                "Password must be at least $MIN_PASSWORD_LENGTH characters long",
+                field = "password",
+            )
 
         else -> tooLongToHash(password)
     }
 
+    /**
+     * BCrypt burns tens of milliseconds of CPU per call. Ktor runs handlers on a
+     * pool sized to the number of cores, so doing that work inline lets a burst of
+     * anonymous login attempts starve every other request, /search included.
+     */
+    private suspend fun <T> hashing(block: () -> T): T = withContext(Dispatchers.Default) { block() }
+
     /** Shared by both paths on purpose: a limit only one of them knows is a 500 waiting to happen. */
     private fun tooLongToHash(password: String): AuthResult.ValidationFailed? =
         if (password.toByteArray().size > MAX_PASSWORD_BYTES) {
-            AuthResult.ValidationFailed("Password must not be longer than $MAX_PASSWORD_BYTES bytes")
+            AuthResult.ValidationFailed(
+                "Password must not be longer than $MAX_PASSWORD_BYTES bytes",
+                field = "password",
+            )
         } else {
             null
         }
@@ -73,6 +98,12 @@ class AuthService(
     companion object {
         /** Never a real password: it only exists to give [absentUserHash] something to hash. */
         private const val ABSENT_USER_PASSWORD = "absent-user-placeholder"
+
+        /**
+         * The longest address SMTP will carry (RFC 5321). Without a bound the
+         * address is stored whole, and a megabyte of it sits in the map forever.
+         */
+        const val MAX_EMAIL_LENGTH: Int = 254
 
         const val MIN_PASSWORD_LENGTH: Int = 8
 
@@ -86,7 +117,7 @@ class AuthService(
 
 sealed interface AuthResult {
     data class Success(val user: User, val token: String) : AuthResult
-    data class ValidationFailed(val message: String) : AuthResult
+    data class ValidationFailed(val message: String, val field: String?) : AuthResult
     data object EmailAlreadyTaken : AuthResult
     data object InvalidCredentials : AuthResult
 }

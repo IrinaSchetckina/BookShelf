@@ -25,6 +25,22 @@ class AuthConfigTest {
     }
 
     @Test
+    fun `reads the audience from its own variable`() {
+        val config = authConfigFromEnv { name ->
+            when (name) {
+                AuthConfig.SECRET_ENV -> "env-secret"
+                AuthConfig.AUDIENCE_ENV -> "other-audience"
+                else -> null
+            }
+        }
+
+        // Reading the wrong variable here would silently keep the default and only
+        // show up as tokens another deployment mints being accepted.
+        assertEquals("other-audience", config.audience)
+        assertEquals(AuthConfig.DEFAULT_ISSUER, config.issuer)
+    }
+
+    @Test
     fun `fails when the secret is missing`() {
         val error = assertFailsWith<IllegalStateException> { authConfigFromEnv { null } }
 

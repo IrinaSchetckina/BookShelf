@@ -9,31 +9,37 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.route
 import ua.readshelf.auth.AuthResult
 import ua.readshelf.auth.AuthService
 import ua.readshelf.auth.JwtService
 import ua.readshelf.auth.UserRepository
 import ua.readshelf.contract.AuthResponseDto
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 import ua.readshelf.contract.LoginRequestDto
 import ua.readshelf.contract.RegisterRequestDto
 import ua.readshelf.contract.UserDto
 import ua.readshelf.domain.User
+import ua.readshelf.plugins.AUTH_RATE_LIMIT
 import ua.readshelf.plugins.JWT_AUTH
+import ua.readshelf.plugins.MISSING_OR_INVALID_TOKEN
 
 fun Route.authRoutes(authService: AuthService) {
-    route("/auth") {
-        post("/register") {
-            val request = call.receive<RegisterRequestDto>()
-            val result = authService.register(request.email, request.password)
-            call.respondToAuthResult(result, successStatus = HttpStatusCode.Created)
-        }
+    rateLimit(AUTH_RATE_LIMIT) {
+        route("/auth") {
+            post("/register") {
+                val request = call.receive<RegisterRequestDto>()
+                val result = authService.register(request.email, request.password)
+                call.respondToAuthResult(result, successStatus = HttpStatusCode.Created)
+            }
 
-        post("/login") {
-            val request = call.receive<LoginRequestDto>()
-            val result = authService.login(request.email, request.password)
-            call.respondToAuthResult(result, successStatus = HttpStatusCode.OK)
+            post("/login") {
+                val request = call.receive<LoginRequestDto>()
+                val result = authService.login(request.email, request.password)
+                call.respondToAuthResult(result, successStatus = HttpStatusCode.OK)
+            }
         }
     }
 }
@@ -51,7 +57,7 @@ fun Route.meRoute(userRepository: UserRepository) {
             val user = userId?.let { userRepository.findById(it) }
                 ?: return@get call.respond(
                     HttpStatusCode.Unauthorized,
-                    ErrorResponseDto("Missing or invalid authentication token"),
+                    ErrorResponseDto(MISSING_OR_INVALID_TOKEN, ErrorCodes.UNAUTHENTICATED),
                 )
 
             call.respond(UserDto(id = user.id, email = user.email))
@@ -70,19 +76,19 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondToAuthResu
 
     is AuthResult.ValidationFailed -> respond(
         HttpStatusCode.BadRequest,
-        ErrorResponseDto(result.message),
+        ErrorResponseDto(result.message, ErrorCodes.VALIDATION_FAILED, result.field),
     )
 
     AuthResult.EmailAlreadyTaken -> respond(
         HttpStatusCode.Conflict,
-        ErrorResponseDto("This email address is already registered"),
+        ErrorResponseDto("This email address is already registered", ErrorCodes.EMAIL_TAKEN, field = "email"),
     )
 
     // Same answer for an unknown address and a wrong password, so the endpoint
     // cannot be used to enumerate who has an account.
     AuthResult.InvalidCredentials -> respond(
         HttpStatusCode.Unauthorized,
-        ErrorResponseDto("Invalid email or password"),
+        ErrorResponseDto("Invalid email or password", ErrorCodes.INVALID_CREDENTIALS),
     )
 }
 

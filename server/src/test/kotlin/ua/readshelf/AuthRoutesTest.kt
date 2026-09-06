@@ -17,11 +17,14 @@ import ua.readshelf.auth.AuthConfig
 import ua.readshelf.auth.JwtService
 import ua.readshelf.auth.UserRecord
 import ua.readshelf.contract.AuthResponseDto
+import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 import ua.readshelf.contract.UserDto
+import ua.readshelf.plugins.DEFAULT_AUTH_REQUESTS_PER_MINUTE
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -96,8 +99,67 @@ class AuthRoutesTest {
         val response = register(password = "short")
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
-        val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
-        assertTrue("8" in message, "actual message: $message")
+        val error = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText())
+        assertTrue("8" in error.message, "actual message: ${error.message}")
+        // A client branches on the code and highlights the named input; matching the
+        // English sentence would break the first time it is reworded or translated.
+        assertEquals(ErrorCodes.VALIDATION_FAILED, error.code)
+        assertEquals("password", error.field)
+    }
+
+    @Test
+    fun `names the offending field on an invalid email`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val error = json.decodeFromString(
+            ErrorResponseDto.serializer(),
+            register(email = "not-an-email").bodyAsText(),
+        )
+
+        assertEquals(ErrorCodes.VALIDATION_FAILED, error.code)
+        assertEquals("email", error.field)
+    }
+
+    @Test
+    fun `codes a duplicate email and a bad login`() = testApplication {
+        application { module(testAuthModule()) }
+        register()
+
+        val duplicate = json.decodeFromString(ErrorResponseDto.serializer(), register().bodyAsText())
+        val badLogin = json.decodeFromString(
+            ErrorResponseDto.serializer(),
+            login(password = "wrong-password").bodyAsText(),
+        )
+        val noToken = json.decodeFromString(ErrorResponseDto.serializer(), client.get("/me").bodyAsText())
+
+        assertEquals(ErrorCodes.EMAIL_TAKEN, duplicate.code)
+        assertEquals(ErrorCodes.INVALID_CREDENTIALS, badLogin.code)
+        assertEquals(ErrorCodes.UNAUTHENTICATED, noToken.code)
+    }
+
+    @Test
+    fun `rejects an email longer than smtp will carry`() = testApplication {
+        application { module(testAuthModule()) }
+
+        // Without a bound the whole address is stored, and a huge one sits in the
+        // user map for as long as the process lives.
+        val response = register(email = "a".repeat(250) + "@example.com")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals("email", json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).field)
+    }
+
+    @Test
+    fun `turns away an oversized body before reading it`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val padding = "a".repeat(100_000)
+        val response = client.post("/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody("{\"email\":\"reader@example.com\",\"password\":\"$padding\"}")
+        }
+
+        assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
     }
 
     @Test
@@ -119,6 +181,23 @@ class AuthRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
         assertTrue("72" in message, "actual message: $message")
+    }
+
+    @Test
+    fun `stops a burst of login attempts`() = testApplication {
+        application { module(testAuthModule()) }
+
+        // Walking a password list is only useful if the server keeps answering.
+        // register and login share one budget, so this test spends it all on login.
+        val statuses = (1..DEFAULT_AUTH_REQUESTS_PER_MINUTE + 1).map {
+            login(password = "wrong-password-$it").status
+        }
+
+        assertEquals(HttpStatusCode.TooManyRequests, statuses.last())
+        assertTrue(
+            statuses.dropLast(1).all { it == HttpStatusCode.Unauthorized },
+            "the limit fired too early: $statuses",
+        )
     }
 
     @Test
@@ -152,12 +231,19 @@ class AuthRoutesTest {
     @Test
     fun `logs in with valid credentials`() = testApplication {
         application { module(testAuthModule()) }
-        register()
+        val registered = register().authBody()
 
         val response = login()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.authBody().token.isNotBlank())
+        val loggedIn = response.authBody()
+        assertEquals(registered.user, loggedIn.user)
+
+        // The token has to work, not merely exist: a token for the wrong user or
+        // signed with the wrong key would still be a non-empty string.
+        val me = client.get("/me") { header(HttpHeaders.Authorization, "Bearer " + loggedIn.token) }
+        assertEquals(HttpStatusCode.OK, me.status)
+        assertEquals(registered.user, json.decodeFromString(UserDto.serializer(), me.bodyAsText()))
     }
 
     @Test
@@ -203,6 +289,20 @@ class AuthRoutesTest {
         assertEquals(HttpStatusCode.Unauthorized, response.status)
         val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
         assertTrue(message.isNotBlank(), "the challenge must explain itself, got an empty body")
+    }
+
+    @Test
+    fun `tells the client which scheme to authenticate with`() = testApplication {
+        application { module(testAuthModule()) }
+
+        val response = client.get("/me")
+
+        // RFC 9110 requires WWW-Authenticate on a 401. Replacing Ktor's default
+        // challenge to get a useful body is what drops it, so it has to be put back.
+        val header = response.headers[HttpHeaders.WWWAuthenticate]
+        assertNotNull(header, "401 came back with no WWW-Authenticate")
+        assertTrue(header.startsWith("Bearer"), "actual header: $header")
+        assertTrue("realm=" in header, "actual header: $header")
     }
 
     @Test

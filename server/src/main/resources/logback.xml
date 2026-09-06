@@ -4,9 +4,14 @@
             <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="trace">
+    <!--
+      The scaffold shipped `trace`, which logs every request and every failure
+      cause. That is a debugging setting, not one to serve traffic on.
+    -->
+    <root level="info">
         <appender-ref ref="STDOUT"/>
     </root>
+    <logger name="ua.readshelf" level="DEBUG"/>
     <logger name="org.eclipse.jetty" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
 </configuration>

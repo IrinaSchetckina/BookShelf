@@ -47,6 +47,26 @@ class JwtServiceTest {
     }
 
     @Test
+    fun `rejects a token minted for another issuer`() {
+        val foreign = JwtService(AuthConfig(secret = "test-secret", issuer = "someone-else"))
+
+        // Same secret, different service: without the issuer check this backend
+        // would accept tokens another system handed out.
+        assertFailsWith<JWTVerificationException> {
+            jwtService().verifier.verify(foreign.issueToken(USER))
+        }
+    }
+
+    @Test
+    fun `rejects a token minted for another audience`() {
+        val foreign = JwtService(AuthConfig(secret = "test-secret", audience = "someone-elses-clients"))
+
+        assertFailsWith<JWTVerificationException> {
+            jwtService().verifier.verify(foreign.issueToken(USER))
+        }
+    }
+
+    @Test
     fun `keeps the secret out of the config toString`() {
         val rendered = AuthConfig(secret = "super-secret").toString()
 

@@ -231,12 +231,19 @@ class AuthRoutesTest {
     @Test
     fun `logs in with valid credentials`() = testApplication {
         application { module(testAuthModule()) }
-        register()
+        val registered = register().authBody()
 
         val response = login()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.authBody().token.isNotBlank())
+        val loggedIn = response.authBody()
+        assertEquals(registered.user, loggedIn.user)
+
+        // The token has to work, not merely exist: a token for the wrong user or
+        // signed with the wrong key would still be a non-empty string.
+        val me = client.get("/me") { header(HttpHeaders.Authorization, "Bearer " + loggedIn.token) }
+        assertEquals(HttpStatusCode.OK, me.status)
+        assertEquals(registered.user, json.decodeFromString(UserDto.serializer(), me.bodyAsText()))
     }
 
     @Test

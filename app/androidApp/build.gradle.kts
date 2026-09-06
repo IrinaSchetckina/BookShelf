@@ -20,11 +20,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.shchotkina.readshelf"
+    namespace = "ua.readshelf"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.shchotkina.readshelf"
+        applicationId = "ua.readshelf"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

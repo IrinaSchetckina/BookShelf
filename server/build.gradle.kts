@@ -1,12 +1,13 @@
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ktor)
+    alias(libs.plugins.kotlinSerialization)
 }
 
-group = "com.shchotkina.readshelf"
+group = "ua.readshelf"
 version = "1.0.0"
 application {
-    mainClass = "com.shchotkina.readshelf.ApplicationKt"
+    mainClass = "ua.readshelf.ApplicationKt"
 }
 
 dependencies {
@@ -14,6 +15,13 @@ dependencies {
     implementation(libs.logback)
     implementation(libs.ktor.serverCore)
     implementation(libs.ktor.serverNetty)
+    implementation(libs.ktor.serverContentNegotiation)
+    implementation(libs.ktor.serverCors)
+    implementation(libs.ktor.serializationJson)
+    implementation(libs.ktor.clientCore)
+    implementation(libs.ktor.clientCio)
+    implementation(libs.ktor.clientContentNegotiation)
     testImplementation(libs.ktor.serverTestHost)
+    testImplementation(libs.ktor.clientMock)
     testImplementation(libs.kotlin.testJunit)
 }

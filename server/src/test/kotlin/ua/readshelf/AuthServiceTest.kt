@@ -15,10 +15,15 @@ import kotlin.test.assertTrue
 /** Records what login actually asked it to verify, which is what the timing depends on. */
 private class RecordingPasswordHasher : PasswordHasher {
     val verifiedHashes = mutableListOf<String>()
+    val threadNames = mutableListOf<String>()
 
-    override fun hash(rawPassword: String): String = "hash:$rawPassword"
+    override fun hash(rawPassword: String): String {
+        threadNames += Thread.currentThread().name
+        return "hash:$rawPassword"
+    }
 
     override fun verify(rawPassword: String, hash: String): Boolean {
+        threadNames += Thread.currentThread().name
         verifiedHashes += hash
         return hash == "hash:$rawPassword"
     }
@@ -66,6 +71,25 @@ class AuthServiceTest {
         assertTrue(
             hasher.verifiedHashes.single() != "hash:password1",
             "an unknown email must not be checked against a real user's hash",
+        )
+    }
+
+    @Test
+    fun `hashes away from the thread that called it`() = runTest {
+        val hasher = RecordingPasswordHasher()
+        val service = authService(hasher)
+        val callerThread = Thread.currentThread().name
+
+        service.register("reader@example.com", "password1")
+        service.login("reader@example.com", "password1")
+
+        // Ktor's handler pool is sized to the core count. Hashing inline would let a
+        // burst of anonymous logins starve every other request on the server.
+        // The constructor's placeholder hash runs at startup and is not counted here.
+        val duringRequests = hasher.threadNames.drop(1)
+        assertTrue(
+            duringRequests.isNotEmpty() && duringRequests.none { it == callerThread },
+            "hashing ran on the calling thread: $duringRequests",
         )
     }
 

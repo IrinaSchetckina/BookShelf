@@ -1,5 +1,7 @@
 package ua.readshelf.auth
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ua.readshelf.domain.User
 
 /**
@@ -15,6 +17,9 @@ class AuthService(
      * address nobody registered as it does verifying a real one. Built with the
      * configured hasher rather than hardcoded, so its cost factor always matches
      * the real hashes it stands in for.
+     *
+     * Blocking here is fine, unlike in the request paths below: this runs while
+     * the Koin graph is being built, before the server accepts anything.
      */
     private val absentUserHash: String = passwordHasher.hash(ABSENT_USER_PASSWORD)
 
@@ -22,7 +27,8 @@ class AuthService(
         val normalizedEmail = normalizeEmail(email)
         validateCredentials(normalizedEmail, password)?.let { return it }
 
-        val user = userRepository.create(normalizedEmail, passwordHasher.hash(password))
+        val passwordHash = hashing { passwordHasher.hash(password) }
+        val user = userRepository.create(normalizedEmail, passwordHash)
             ?: return AuthResult.EmailAlreadyTaken
 
         return AuthResult.Success(user.toDomain(), jwtService.issueToken(user))
@@ -44,7 +50,7 @@ class AuthService(
         // for an unknown address would answer noticeably faster, and that timing
         // difference tells an attacker who is registered just as plainly as
         // separate error messages would.
-        val passwordMatches = passwordHasher.verify(password, user?.passwordHash ?: absentUserHash)
+        val passwordMatches = hashing { passwordHasher.verify(password, user?.passwordHash ?: absentUserHash) }
         if (user == null || !passwordMatches) {
             return AuthResult.InvalidCredentials
         }
@@ -61,6 +67,13 @@ class AuthService(
 
         else -> tooLongToHash(password)
     }
+
+    /**
+     * BCrypt burns tens of milliseconds of CPU per call. Ktor runs handlers on a
+     * pool sized to the number of cores, so doing that work inline lets a burst of
+     * anonymous login attempts starve every other request, /search included.
+     */
+    private suspend fun <T> hashing(block: () -> T): T = withContext(Dispatchers.Default) { block() }
 
     /** Shared by both paths on purpose: a limit only one of them knows is a 500 waiting to happen. */
     private fun tooLongToHash(password: String): AuthResult.ValidationFailed? =

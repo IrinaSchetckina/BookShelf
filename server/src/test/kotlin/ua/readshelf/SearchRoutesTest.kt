@@ -21,6 +21,7 @@ import kotlin.test.assertTrue
 import io.ktor.client.HttpClient
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import org.koin.dsl.onClose
 
 private val OPEN_LIBRARY_PAYLOAD = """
     {
@@ -48,7 +49,7 @@ private fun mockOpenLibraryClient(engine: MockEngine): OpenLibraryClient =
 
 /** Replaces the real Open Library client in the backend's Koin graph. */
 private fun openLibraryOverride(engine: MockEngine): Module = module {
-    single { mockOpenLibraryClient(engine) }
+    single { mockOpenLibraryClient(engine) } onClose { client: OpenLibraryClient? -> client?.close() }
 }
 
 class SearchRoutesTest {

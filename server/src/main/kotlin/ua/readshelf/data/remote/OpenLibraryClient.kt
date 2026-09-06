@@ -12,17 +12,25 @@ import kotlinx.serialization.json.Json
 /**
  * Talks to the public Open Library API. Clients never reach it directly,
  * they go through the ReadShelf backend.
+ *
+ * Takes ownership of [httpClient]: [close] shuts it down, so do not hand in a
+ * client that outlives this instance.
  */
 class OpenLibraryClient(
     private val httpClient: HttpClient = defaultHttpClient(),
     private val baseUrl: String = OPEN_LIBRARY_BASE_URL,
-) {
+) : AutoCloseable {
     suspend fun search(query: String, limit: Int): OpenLibrarySearchResponseDto =
         httpClient.get("$baseUrl/search.json") {
             parameter("q", query)
             parameter("limit", limit)
             parameter("fields", REQUESTED_FIELDS)
         }.body()
+
+    /** Releases the engine's connection pool and its threads. */
+    override fun close() {
+        httpClient.close()
+    }
 
     companion object {
         const val OPEN_LIBRARY_BASE_URL: String = "https://openlibrary.org"

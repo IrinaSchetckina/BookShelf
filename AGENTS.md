@@ -11,13 +11,17 @@
 - `:app:webApp` — тонка Web точка входу; збирається під обидва таргети (Wasm і JS), спільний код у `webMain`.
 - `app/iosApp` — Xcode-проєкт, точка входу iOS (не Gradle-модуль).
 - `:server` — Ktor-бекенд: проксі до Open Library, авторизація, полиці, PostgreSQL.
+  Авторизація: JWT, секрет із env `JWT_SECRET` (без нього сервер не стартує), паролі — BCrypt,
+  користувачі поки що in-memory. Серверні типи з паролем (`UserRecord`, `UserRepository`) живуть
+  у `:server`, бо `:core` компілюється в клієнти.
 
 ## Технологічні рішення
 - Мова: Kotlin, строго. Без `!!` та зайвих `any`-подібних обходів типів.
 - HTTP: **Ktor Client** (клієнт) / **Ktor Server** (бекенд).
 - Серіалізація: **kotlinx.serialization**. Усі DTO — `@Serializable`.
 - Асинхрон: coroutines + Flow. Ніяких блокуючих викликів у UI/у suspend-контексті.
-- DI: ручне конструкторне впровадження через AppContainer; Koin — з М2.
+- DI: на `:server` — **Koin** (`serverModule()`, `Application.module(vararg overrides)`; тести
+  підмінюють окремі визначення власним модулем). У `:app:shared` поки що ручний `AppContainer`.
 - БД (сервер): PostgreSQL + **Exposed**.
 - Публічне API: Open Library (`https://openlibrary.org`), без ключа. Клієнти ходять НЕ напряму в Open Library, а тільки через наш `:server`.
 

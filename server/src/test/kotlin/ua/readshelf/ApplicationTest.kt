@@ -11,7 +11,7 @@ class ApplicationTest {
     @Test
     fun testRoot() = testApplication {
         application {
-            module()
+            module(testAuthModule())
         }
         val response = client.get("/")
         assertEquals(HttpStatusCode.OK, response.status)

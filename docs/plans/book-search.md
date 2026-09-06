@@ -37,7 +37,7 @@
 
 ### Крок 3 — `:app:shared` (мережа + presentation + UI)
 - `data.remote.ReadShelfApi` — Ktor Client до нашого сервера.
-- `data.remote.ApiConfig` — `expect val apiBaseUrl`; actual: androidMain `http://10.0.2.2:8080`, iosMain/jvmMain `http://localhost:8080`, webMain `http://localhost:8080`.
+- `data.remote.ApiConfig` — `expect val apiBaseUrl`; actual: androidMain `http://10.0.2.2:8080`, iosMain `http://localhost:8080`, webMain `http://localhost:8080`. (`:app:shared` не має jvm-таргету, тож jvmMain-actual не потрібен.)
 - `data.BookRepositoryImpl` — реалізація `BookRepository`.
 - `presentation.SearchViewModel : ViewModel` — `StateFlow<SearchUiState>` (Idle/Loading/Success/Empty/Error), `onQueryChange`, `onSearch`; корутини у `viewModelScope`.
 - `ui.SearchScreen` — TextField + кнопка + LazyColumn(BookRow) + стани; VM через `viewModel { AppContainer.searchViewModel() }`; нуль мережі в composable.
@@ -57,7 +57,7 @@
 ```
 ./gradlew :core:build
 ./gradlew :server:test
-./gradlew :app:shared:jvmTest :app:shared:testAndroidHostTest
+./gradlew :app:shared:testAndroidHostTest
 ./gradlew build
 ./gradlew :server:run
 curl "http://localhost:8080/search?q=dune&limit=5"

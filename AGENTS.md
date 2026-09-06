@@ -5,11 +5,11 @@
 ## Модулі та відповідальність
 > Звір із фактичними `build.gradle.kts` кожного модуля; якщо назви інші — поправ тут.
 
-- `:core` — чистий Kotlin. Доменні моделі, інтерфейси репозиторіїв, use-cases. Без Android/Ktor/Compose залежностей.
+- `:core` — чистий Kotlin. Домен (`ua.readshelf.domain`: моделі, інтерфейси репозиторіїв, use-cases) і контракт нашого HTTP API (`ua.readshelf.contract`: `@Serializable` DTO), спільний для `:server` і клієнтів. Дозволені залежності: лише kotlinx-serialization і coroutines. Без Android/Ktor/Compose.
 - `:app:shared` — спільний код клієнтів: presentation (ViewModels/стан), реалізації репозиторіїв, мережевий шар (Ktor Client), DI, спільний Compose UI.
 - `:app:androidApp` — тонка Android-точка входу.
-- `:app:webApp` — тонка Web (Wasm) точка входу.
-- `iosApp` — Xcode-проєкт, точка входу iOS.
+- `:app:webApp` — тонка Web точка входу; збирається під обидва таргети (Wasm і JS), спільний код у `webMain`.
+- `app/iosApp` — Xcode-проєкт, точка входу iOS (не Gradle-модуль).
 - `:server` — Ktor-бекенд: проксі до Open Library, авторизація, полиці, PostgreSQL.
 
 ## Технологічні рішення
@@ -17,13 +17,13 @@
 - HTTP: **Ktor Client** (клієнт) / **Ktor Server** (бекенд).
 - Серіалізація: **kotlinx.serialization**. Усі DTO — `@Serializable`.
 - Асинхрон: coroutines + Flow. Ніяких блокуючих викликів у UI/у suspend-контексті.
-- DI: **Koin**.
+- DI: ручне конструкторне впровадження через AppContainer; Koin — з М2.
 - БД (сервер): PostgreSQL + **Exposed**.
 - Публічне API: Open Library (`https://openlibrary.org`), без ключа. Клієнти ходять НЕ напряму в Open Library, а тільки через наш `:server`.
 
 ## Архітектурні правила
 - Залежності односторонні: `core` нічого не знає про `shared`/платформи. UI → presentation → domain(`core`) → data.
-- Доменні моделі (`core`) відокремлені від DTO (мережеві). Мапимо DTO ↔ domain явно.
+- Доменні моделі (`ua.readshelf.domain`) відокремлені від DTO (`ua.readshelf.contract` — наш API, `data.remote` — зовнішні). Мапимо DTO ↔ domain явно.
 - Жодних мережевих чи БД-викликів прямо з Compose-функцій.
 
 ## Неймінг
@@ -36,8 +36,14 @@
 - Web: `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
 - Android: запуск із IDE (`:app:androidApp`)
 - iOS: із Xcode/IDE (потрібен Xcode 26+)
-- Усі тести: `./gradlew test`
+- Тести: `./gradlew :server:test :core:jvmTest :app:shared:testAndroidHostTest`; уся збірка + перевірки всіх таргетів — `./gradlew build`
 - Лінт/формат: `./gradlew ktlintCheck` (додамо в М6, якщо ще нема)
+
+## Збірка
+`:app:shared` має таргети iosArm64, iosSimulatorArm64, js, wasmJs, android — **jvm немає**,
+тож задачі `:app:shared:jvmTest` не існує (спільні тести ганяємо через `testAndroidHostTest`).
+kotlin.daemon.jvmargs=6g у gradle.properties — потрібно для лінкування
+release-фреймворку iosArm64 (інакше OutOfMemoryError). Врахувати в CI (М8).
 
 ## Робочий процес (5 фаз) — обовʼязково
 Будь-яку нетривіальну задачу веди фазами, не змішуючи їх:

@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.ktor.serverAuth)
     implementation(libs.ktor.serverAuthJwt)
     implementation(libs.ktor.serverStatusPages)
+    implementation(libs.ktor.serverRateLimit)
     implementation(libs.ktor.serializationJson)
     implementation(libs.ktor.clientCore)
     implementation(libs.ktor.clientCio)

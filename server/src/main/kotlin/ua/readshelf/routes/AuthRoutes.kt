@@ -9,6 +9,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.route
 import ua.readshelf.auth.AuthResult
 import ua.readshelf.auth.AuthService
@@ -21,21 +22,24 @@ import ua.readshelf.contract.LoginRequestDto
 import ua.readshelf.contract.RegisterRequestDto
 import ua.readshelf.contract.UserDto
 import ua.readshelf.domain.User
+import ua.readshelf.plugins.AUTH_RATE_LIMIT
 import ua.readshelf.plugins.JWT_AUTH
 import ua.readshelf.plugins.MISSING_OR_INVALID_TOKEN
 
 fun Route.authRoutes(authService: AuthService) {
-    route("/auth") {
-        post("/register") {
-            val request = call.receive<RegisterRequestDto>()
-            val result = authService.register(request.email, request.password)
-            call.respondToAuthResult(result, successStatus = HttpStatusCode.Created)
-        }
+    rateLimit(AUTH_RATE_LIMIT) {
+        route("/auth") {
+            post("/register") {
+                val request = call.receive<RegisterRequestDto>()
+                val result = authService.register(request.email, request.password)
+                call.respondToAuthResult(result, successStatus = HttpStatusCode.Created)
+            }
 
-        post("/login") {
-            val request = call.receive<LoginRequestDto>()
-            val result = authService.login(request.email, request.password)
-            call.respondToAuthResult(result, successStatus = HttpStatusCode.OK)
+            post("/login") {
+                val request = call.receive<LoginRequestDto>()
+                val result = authService.login(request.email, request.password)
+                call.respondToAuthResult(result, successStatus = HttpStatusCode.OK)
+            }
         }
     }
 }

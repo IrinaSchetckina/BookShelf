@@ -20,6 +20,7 @@ import ua.readshelf.contract.AuthResponseDto
 import ua.readshelf.contract.ErrorCodes
 import ua.readshelf.contract.ErrorResponseDto
 import ua.readshelf.contract.UserDto
+import ua.readshelf.plugins.DEFAULT_AUTH_REQUESTS_PER_MINUTE
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -180,6 +181,23 @@ class AuthRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val message = json.decodeFromString(ErrorResponseDto.serializer(), response.bodyAsText()).message
         assertTrue("72" in message, "actual message: $message")
+    }
+
+    @Test
+    fun `stops a burst of login attempts`() = testApplication {
+        application { module(testAuthModule()) }
+
+        // Walking a password list is only useful if the server keeps answering.
+        // register and login share one budget, so this test spends it all on login.
+        val statuses = (1..DEFAULT_AUTH_REQUESTS_PER_MINUTE + 1).map {
+            login(password = "wrong-password-$it").status
+        }
+
+        assertEquals(HttpStatusCode.TooManyRequests, statuses.last())
+        assertTrue(
+            statuses.dropLast(1).all { it == HttpStatusCode.Unauthorized },
+            "the limit fired too early: $statuses",
+        )
     }
 
     @Test

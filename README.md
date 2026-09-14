@@ -45,6 +45,14 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
   - JS target: `./gradlew :app:shared:jsTest`
 - iOS tests: `./gradlew :app:shared:iosSimulatorArm64Test`
 
+
+## Dev-інструменти (для агента)
+
+`mcp/openlibrary` — MCP-сервер, яким агент під час розробки підтягує
+реальні дані книг (для тестових фікстур). Потребує [`uv`](https://docs.astral.sh/uv/)
+(`brew install uv`); залежності ставляться автоматично з PEP 723.
+Підключення — у `.mcp.json`.
+
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),

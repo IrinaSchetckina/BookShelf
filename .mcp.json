@@ -1,12 +1,8 @@
 {
   "mcpServers": {
     "openlibrary": {
-      "type": "stdio",
-      "command": "/Users/irynaschotkina/AndroidStudioProjects/ReadShelf/mcp/openlibrary/.venv/bin/python",
-      "args": [
-        "/Users/irynaschotkina/AndroidStudioProjects/ReadShelf/mcp/openlibrary/server.py"
-      ],
-      "env": {}
+      "command": "uv",
+      "args": ["run", "--directory", "mcp/openlibrary", "server.py"]
     }
   }
 }

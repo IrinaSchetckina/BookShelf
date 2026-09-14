@@ -1,3 +1,6 @@
+# /// script
+# dependencies = ["fastmcp", "httpx"]
+# ///
 from fastmcp import FastMCP
 import httpx
 

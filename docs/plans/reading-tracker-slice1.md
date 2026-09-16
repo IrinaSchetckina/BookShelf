@@ -103,6 +103,19 @@ AC-47 («обсяг невідомий → прогрес прихований»
 Якщо задачі нема — з'ясувати фактичне ім'я (`./gradlew :core:tasks --all | grep -i test`) і
 виправити Крок 3, розділ Verify і `AGENTS.md` до того, як написано перший тест.
 
+> **Звірено на Кроці 0:** `:core:jvmTest` існує (`jvmTest - Runs the tests of the test test run`).
+
+**Залежності host-тестів `:app:shared` — тільки через `getByName("androidHostTest")`.**
+Типізованого акцесора `androidHostTest` у DSL плагіна `com.android.kotlin.multiplatform.library` немає:
+`androidHostTest.dependencies { }` падає ще на конфігурації з `Unresolved reference 'androidHostTest'`
+(спіймано на Кроці 0). Робочий запис:
+
+```
+getByName("androidHostTest").dependencies {
+    implementation(libs.sqldelight.sqliteDriver)
+}
+```
+
 ### Крок 2 — `:core`, домен (`ua.readshelf.domain.reading`)
 
 Сигнатури, не реалізація:
@@ -139,6 +152,14 @@ AC-47 («обсяг невідомий → прогрес прихований»
 - `ReadShelf.sq` — таблиці `trackedBook` і `readingSession`; `readingSession.bookKey` → `trackedBook`,
   `ON DELETE CASCADE` (§7 спеки: видалення книги забирає її сесії).
 - `expect fun readShelfDriver(): SqlDriver` + `actual` під кожен таргет за підсумком Кроку 0.
+- **`generateAsync = true` — рішення, а не налаштування.** `web-worker-driver` існує лише в
+  асинхронному вигляді, тож без цього прапорця web-таргети не отримають робочої БД. Прапорець діє на
+  генерацію для **всіх** таргетів, тому **згенерований API — suspend скрізь**, включно з Android та iOS:
+  - запити виконуються через `awaitAsList()` / `awaitAsOne()` / `awaitAsOneOrNull()`, а не `executeAsList()`;
+  - створення схеми — `ReadShelfDatabase.Schema.awaitCreate(driver)`, не синхронний `create`;
+  - `asFlow().mapToList(dispatcher)` лишається робочим і для асинхронних запитів;
+  - на наш дизайн це майже не впливає — методи репозиторіїв і так `suspend`, — але синхронний
+    виклик БД тепер неможливий навіть там, де драйвер синхронний. Не обходити через `runBlocking`.
 - `ReadingSessionRepositoryImpl`, `TrackedBookRepositoryImpl` — мапінг рядок ↔ домен, запити на
   `Dispatchers.Default` (не на UI), читання через `asFlow().mapToList()`.
 - Дата в БД — `TEXT` у ISO-форматі (`LocalDate.toString()`), час — епоха в мілісекундах, nullable.

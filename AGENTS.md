@@ -25,6 +25,10 @@
 - DI: на `:server` — **Koin** (`serverModule()`, `Application.module(vararg overrides)`; тести
   підмінюють окремі визначення власним модулем). У `:app:shared` поки що ручний `AppContainer`.
 - БД (сервер): PostgreSQL + **Exposed**.
+- БД (клієнт): **SQLDelight** 2.1.0 у `:app:shared`, з `generateAsync = true` — `web-worker-driver`
+  (js/wasmJs) існує лише асинхронним. Наслідок для всіх таргетів, включно з Android та iOS:
+  згенерований API — **suspend скрізь** (`awaitAsList()`, `Schema.awaitCreate(driver)`);
+  синхронних викликів БД немає, `runBlocking` як обхід не використовуємо.
 - Публічне API: Open Library (`https://openlibrary.org`), без ключа. Клієнти ходять НЕ напряму в Open Library, а тільки через наш `:server`.
 
 ## Архітектурні правила
@@ -50,6 +54,9 @@
 ## Збірка
 `:app:shared` має таргети iosArm64, iosSimulatorArm64, js, wasmJs, android — **jvm немає**,
 тож задачі `:app:shared:jvmTest` не існує (спільні тести ганяємо через `testAndroidHostTest`).
+У `:core` jvm-таргет є — `:core:jvmTest` існує (звірено `./gradlew :core:tasks --all`).
+Залежності host-тестів `:app:shared` — лише через `getByName("androidHostTest").dependencies { }`:
+типізованого акцесора `androidHostTest` у DSL AGP-KMP-плагіна немає (падає на конфігурації).
 kotlin.daemon.jvmargs=6g у gradle.properties — потрібно для лінкування
 release-фреймворку iosArm64 (інакше OutOfMemoryError). Врахувати в CI (М8).
 

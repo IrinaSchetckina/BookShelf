@@ -5,7 +5,7 @@
 ## Модулі та відповідальність
 > Звір із фактичними `build.gradle.kts` кожного модуля; якщо назви інші — поправ тут.
 
-- `:core` — чистий Kotlin. Домен (`ua.readshelf.domain`: моделі, інтерфейси репозиторіїв, use-cases) і контракт нашого HTTP API (`ua.readshelf.contract`: `@Serializable` DTO), спільний для `:server` і клієнтів. Дозволені залежності: лише kotlinx-serialization і coroutines. Без Android/Ktor/Compose.
+- `:core` — чистий Kotlin. Домен (`ua.readshelf.domain`: моделі, інтерфейси репозиторіїв, use-cases) і контракт нашого HTTP API (`ua.readshelf.contract`: `@Serializable` DTO), спільний для `:server` і клієнтів. Дозволені залежності: лише kotlinx-serialization, coroutines і kotlinx-datetime (дати дня читання — чиста календарна арифметика). Без Android/Ktor/Compose.
 - `:app:shared` — спільний код клієнтів: presentation (ViewModels/стан), реалізації репозиторіїв, мережевий шар (Ktor Client), DI, спільний Compose UI.
 - `:app:androidApp` — тонка Android-точка входу.
 - `:app:webApp` — тонка Web точка входу; збирається під обидва таргети (Wasm і JS), спільний код у `webMain`.

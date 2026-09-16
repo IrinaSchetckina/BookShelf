@@ -1,0 +1,23 @@
+import kotlin.String;
+import kotlin.collections.List;
+
+-- A book the reader tracks. totalPages is entered by the reader and may be unknown.
+CREATE TABLE trackedBookEntity (
+    bookKey TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    authors TEXT AS List<String> NOT NULL,
+    coverUrl TEXT,
+    totalPages INTEGER
+);
+
+selectAll:
+SELECT * FROM trackedBookEntity ORDER BY title;
+
+-- ON CONFLICT DO UPDATE needs SQLite 3.24; Android API 24 ships 3.9, so replace the row instead.
+-- Safe only because no foreign key cascades from this table (see ReadingSessionEntity.sq).
+upsert:
+INSERT OR REPLACE INTO trackedBookEntity(bookKey, title, authors, coverUrl, totalPages)
+VALUES (?, ?, ?, ?, ?);
+
+deleteByKey:
+DELETE FROM trackedBookEntity WHERE bookKey = ?;

@@ -149,9 +149,26 @@ getByName("androidHostTest").dependencies {
 
 ### Крок 4 — `:app:shared`, сховище (`ua.readshelf.data.local`)
 
-- `ReadShelf.sq` — таблиці `trackedBook` і `readingSession`; `readingSession.bookKey` → `trackedBook`,
-  `ON DELETE CASCADE` (§7 спеки: видалення книги забирає її сесії).
-- `expect fun readShelfDriver(): SqlDriver` + `actual` під кожен таргет за підсумком Кроку 0.
+- `TrackedBookEntity.sq` і `ReadingSessionEntity.sq` — таблиці `trackedBookEntity` і `readingSessionEntity`.
+  Суфікс `Entity` — бо SQLDelight генерує класи за назвами таблиць і `ReadingSession` зіткнувся б із доменним.
+- **Без `REFERENCES … ON DELETE CASCADE` (відхід від першої редакції плану).** SQLite перевіряє зовнішні
+  ключі лише коли кожен драйвер вмикає їх окремо на з'єднанні (Android, native, JDBC, воркер — чотири місця,
+  де забуте налаштування мовчки ламає каскад). До того ж `INSERT OR REPLACE` на книзі з каскадом стер би її
+  сесії. Тому §7 спеки («видалення книги забирає її сесії») виконується явним видаленням сесій у тій самій
+  транзакції в `TrackedBookRepositoryImpl.delete`.
+- **Upsert книги — `INSERT OR REPLACE`**, не `ON CONFLICT DO UPDATE`: останнє потребує SQLite 3.24,
+  а Android API 24 має 3.9.
+- Фабрика драйвера — `fun interface SqlDriverFactory` у `commonMain` з реалізаціями
+  `AndroidSqlDriverFactory(context)`, `NativeSqlDriverFactory`, `WebWorkerSqlDriverFactory`
+  (замість `expect fun`: Android-реалізації потрібен `Context`, який у спільному коді не взяти).
+- **Web — власний воркер на `@sqlite.org/sqlite-wasm` з OPFS (VFS `opfs-sahpool`)**, а не офіційний sql.js:
+  той тримає БД у пам'яті, і після перезавантаження сторінки дані зникали б (AC-78/79).
+  Воркер реалізує протокол web-worker-driver 2.1.0 (формат звірено з вихідним кодом драйвера, не з документацією,
+  яка з ним розходиться): відповідь `{ id, results: { values } }`, для змінювальних запитів —
+  `values: [[кількість змінених рядків]]`; цілі числа — лише JS `number`, ніколи `BigInt`.
+  Обмеження `opfs-sahpool`: ексклюзивний замок — друга вкладка застосунку не відкриє БД, поки відкрита перша.
+- **Версія схеми на вебі — `PRAGMA user_version`** (`SqlDriver.createOrMigrate`). Android і native драйвери
+  роблять це самі; для персистентного воркера без цього схема створювалася б при кожному старті.
 - **`generateAsync = true` — рішення, а не налаштування.** `web-worker-driver` існує лише в
   асинхронному вигляді, тож без цього прапорця web-таргети не отримають робочої БД. Прапорець діє на
   генерацію для **всіх** таргетів, тому **згенерований API — suspend скрізь**, включно з Android та iOS:

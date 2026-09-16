@@ -29,6 +29,9 @@
   (js/wasmJs) існує лише асинхронним. Наслідок для всіх таргетів, включно з Android та iOS:
   згенерований API — **suspend скрізь** (`awaitAsList()`, `Schema.awaitCreate(driver)`);
   синхронних викликів БД немає, `runBlocking` як обхід не використовуємо.
+  На вебі — власний воркер `readshelf-sqlite.worker.js` (`@sqlite.org/sqlite-wasm`, OPFS `opfs-sahpool`),
+  а не sql.js зі SQLDelight: той тримає БД у пам'яті. Обмеження: одна вкладка застосунку за раз.
+  Зовнішніх ключів із каскадом у схемі немає — пов'язані рядки видаляємо явно в транзакції.
 - Публічне API: Open Library (`https://openlibrary.org`), без ключа. Клієнти ходять НЕ напряму в Open Library, а тільки через наш `:server`.
 
 ## Архітектурні правила

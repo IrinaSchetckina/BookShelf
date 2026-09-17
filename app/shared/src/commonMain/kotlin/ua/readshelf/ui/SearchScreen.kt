@@ -18,6 +18,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,9 +32,14 @@ import ua.readshelf.domain.Book
 import ua.readshelf.presentation.SearchUiState
 import ua.readshelf.presentation.SearchViewModel
 
+/**
+ * [onTrack] is null while local storage is not open; the "Track" button is hidden until then.
+ */
 @Composable
 fun SearchScreen(
     modifier: Modifier = Modifier,
+    trackedBookKeys: Set<String> = emptySet(),
+    onTrack: ((Book) -> Unit)? = null,
     viewModel: SearchViewModel = viewModel { AppContainer.searchViewModel() },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -42,6 +48,8 @@ fun SearchScreen(
         state = state,
         onQueryChange = viewModel::onQueryChange,
         onSearch = viewModel::onSearch,
+        trackedBookKeys = trackedBookKeys,
+        onTrack = onTrack,
         modifier = modifier,
     )
 }
@@ -51,6 +59,8 @@ private fun SearchScreenContent(
     state: SearchUiState,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
+    trackedBookKeys: Set<String>,
+    onTrack: ((Book) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
@@ -79,32 +89,42 @@ private fun SearchScreenContent(
                 SearchUiState.Status.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 SearchUiState.Status.Empty -> CenteredMessage("Nothing found for \"${state.query}\"")
                 is SearchUiState.Status.Error -> CenteredMessage(status.message)
-                is SearchUiState.Status.Success -> BookList(status.books)
+                is SearchUiState.Status.Success -> BookList(status.books, trackedBookKeys, onTrack)
             }
         }
     }
 }
 
 @Composable
-private fun BookList(books: List<Book>) {
+private fun BookList(books: List<Book>, trackedBookKeys: Set<String>, onTrack: ((Book) -> Unit)?) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(books, key = { it.id }) { book ->
-            BookRow(book)
+            BookRow(book, isTracked = book.id in trackedBookKeys, onTrack = onTrack)
             HorizontalDivider()
         }
     }
 }
 
 @Composable
-private fun BookRow(book: Book) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-        Text(text = book.title, style = MaterialTheme.typography.titleMedium)
-        val subtitle = listOfNotNull(
-            book.authors.takeIf { it.isNotEmpty() }?.joinToString(),
-            book.firstPublishYear?.toString(),
-        ).joinToString(" · ")
-        if (subtitle.isNotEmpty()) {
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium)
+private fun BookRow(book: Book, isTracked: Boolean, onTrack: ((Book) -> Unit)?) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = book.title, style = MaterialTheme.typography.titleMedium)
+            val subtitle = listOfNotNull(
+                book.authors.takeIf { it.isNotEmpty() }?.joinToString(),
+                book.firstPublishYear?.toString(),
+            ).joinToString(" · ")
+            if (subtitle.isNotEmpty()) {
+                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        if (onTrack != null) {
+            TextButton(onClick = { onTrack(book) }, enabled = !isTracked) {
+                Text(if (isTracked) "Tracking" else "Track")
+            }
         }
     }
 }

@@ -8,6 +8,9 @@ import app.cash.sqldelight.db.SqlSchema
  * SQLite in a web worker, persisted in the Origin Private File System.
  * The stock SQLDelight sql.js worker keeps the database in memory and loses it on reload,
  * which would break the tracker's local-first promise on the web.
+ *
+ * The worker script is an asset of the web app (`:app:webApp`, `readshelf-sqlite.worker.js`):
+ * a library's resources are not copied into the app bundle, so it must ship next to the app.
  */
 class WebWorkerSqlDriverFactory : SqlDriverFactory {
 

@@ -65,8 +65,6 @@ kotlin {
         webMain.dependencies {
             implementation(libs.ktor.clientJs)
             implementation(libs.sqldelight.webWorkerDriver)
-            // Persistent SQLite for the web worker (OPFS); see readshelf-sqlite.worker.js.
-            implementation(npm("@sqlite.org/sqlite-wasm", libs.versions.sqlite.wasm.get()))
         }
         commonMain.dependencies {
             api(project(":core"))

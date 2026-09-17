@@ -216,13 +216,28 @@ getByName("androidHostTest").dependencies {
 
 ### Крок 8 — `AppContainer`
 
-Додати lazy-синглтони БД і репозиторіїв + фабрику `readingViewModel()`. Конструкторне впровадження,
-як у `searchViewModel()` — щоб міграція на Koin у М2 лишалася механічною.
+Конструкторне впровадження, як у `searchViewModel()` — щоб міграція на Koin у М2 лишалася механічною.
+Як зроблено (відхилення від «lazy-синглтонів» першої редакції):
+
+- **Відкриття БД — `suspend`** (web-драйвер відкриває її у воркері), тож lazy-синглтон неможливий.
+  `AppContainer.openReadingStorage(factory)` відкриває сховище один раз за процес під `Mutex`
+  і повертає `ReadingStorage` — лише доменні інтерфейси репозиторіїв; невдача не кешується.
+- **Фабрику драйвера передає точка входу:** `App(sqlDriverFactory)`. Android — `AndroidSqlDriverFactory(applicationContext)`,
+  iOS — `NativeSqlDriverFactory()`, web — `WebWorkerSqlDriverFactory()`. Так Android-`Context` не живе в глобальному стані.
+- **Навігація — дві вкладки (Search / Reading)** зі спільним `ReadingViewModel`, створеним на рівні `App`:
+  кнопка «Track» у пошуку і трекер ділять один стан. Поки сховище не відкрите, «Track» прихована.
+- **Невдале відкриття сховища** показується текстом у вкладці Reading, а не валить застосунок:
+  на вебі OPFS-пул тримає ексклюзивний замок, тож друга вкладка відкрити БД не зможе.
+- **Воркер `readshelf-sqlite.worker.js` і npm-залежність `@sqlite.org/sqlite-wasm` — у `:app:webApp`.**
+  Ресурси бібліотеки (`:app:shared`) не копіюються в бандл застосунку — webpack не знаходив воркер.
 
 ### Крок 9 — `AGENTS.md`
 
 Дописати: `kotlinx-datetime` дозволена в `:core`; `:app:shared` має локальну БД на SQLDelight;
 тести репозиторію живуть в `androidHostTest`, бо драйвера під web/ios у `commonTest` нема.
+
+> Виконано по ходу Кроків 0–8 (кожна правка — у коміті, що її спричинив), а не окремим кроком:
+> коміт, який вводить правило, не мав суперечити `AGENTS.md`.
 
 ## Фікстури
 

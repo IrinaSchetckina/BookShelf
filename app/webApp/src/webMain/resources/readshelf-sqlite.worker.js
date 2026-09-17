@@ -1,4 +1,6 @@
 // SQLDelight web-worker protocol on top of @sqlite.org/sqlite-wasm, persisted in OPFS.
+// Started by WebWorkerSqlDriverFactory in :app:shared; lives here because only the app's own
+// resources end up next to the bundle that resolves it.
 //
 // Requests:  { id, action: "exec" | "begin_transaction" | "end_transaction" | "rollback_transaction", sql, params }
 // Responses: { id, results: { values: [[...row], ...] } }  or  { id, error }

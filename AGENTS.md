@@ -31,6 +31,9 @@
   синхронних викликів БД немає, `runBlocking` як обхід не використовуємо.
   На вебі — власний воркер `readshelf-sqlite.worker.js` (`@sqlite.org/sqlite-wasm`, OPFS `opfs-sahpool`),
   а не sql.js зі SQLDelight: той тримає БД у пам'яті. Обмеження: одна вкладка застосунку за раз.
+  Воркер і його npm-залежність живуть у `:app:webApp` (ресурси бібліотеки в бандл не потрапляють).
+  Фабрику драйвера передає точка входу: `App(sqlDriverFactory)`; сховище відкриває
+  `AppContainer.openReadingStorage` (suspend, один раз за процес).
   Зовнішніх ключів із каскадом у схемі немає — пов'язані рядки видаляємо явно в транзакції.
 - Публічне API: Open Library (`https://openlibrary.org`), без ключа. Клієнти ходять НЕ напряму в Open Library, а тільки через наш `:server`.
 

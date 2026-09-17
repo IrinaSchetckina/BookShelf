@@ -43,9 +43,11 @@ class ReadingViewModel(
         combine(sessionRepository.observeAll(), bookRepository.observeAll()) { sessions, books ->
             this.sessions = sessions
             this.books = books
+            val today = today()
             _state.update {
                 it.copy(
-                    summary = buildSummary(sessions, books, today()),
+                    summary = buildSummary(sessions, books, today),
+                    today = today,
                     sessions = sessions.asReversed(),
                 )
             }
@@ -188,6 +190,10 @@ class ReadingViewModel(
             runCatching { bookRepository.upsert(book.copy(totalPages = totalPages)) }
                 .onFailure { _state.update { it.copy(totalPagesProblem = TotalPagesProblem.SaveFailed) } }
         }
+    }
+
+    fun dismissTotalPagesProblem() {
+        _state.update { it.copy(totalPagesProblem = null) }
     }
 
     private fun today(): LocalDate = ReadingDay.of(clock.now(), zone)

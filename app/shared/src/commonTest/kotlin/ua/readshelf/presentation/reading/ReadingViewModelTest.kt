@@ -427,6 +427,25 @@ class ReadingViewModelTest {
     }
 
     @Test
+    fun dismissedLengthProblemIsGone() = runTest(testDispatcher) {
+        val viewModel = viewModelWith(FakeReadingSessionRepository())
+        viewModel.onSaveTotalPages(DUNE.bookKey, "abc")
+
+        viewModel.dismissTotalPagesProblem()
+
+        assertNull(viewModel.state.value.totalPagesProblem)
+    }
+
+    @Test
+    fun stateCarriesCurrentReadingDay() = runTest(testDispatcher) {
+        clock.instant = at(2026, 9, 17, 1, 30)
+
+        val today = viewModelWith(FakeReadingSessionRepository()).state.value.today
+
+        assertEquals(TODAY, today)
+    }
+
+    @Test
     fun trackingAlreadyTrackedBookKeepsItsLength() = runTest(testDispatcher) {
         val books = FakeTrackedBookRepository(listOf(DUNE))
         val viewModel = viewModelWith(FakeReadingSessionRepository(), books)

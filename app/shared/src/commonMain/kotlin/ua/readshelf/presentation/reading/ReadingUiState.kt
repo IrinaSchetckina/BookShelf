@@ -12,6 +12,8 @@ import ua.readshelf.domain.reading.SessionRejection
 data class ReadingUiState(
     /** Null only until storage has emitted once. */
     val summary: ReadingSummary? = null,
+    /** The reading day the summary was computed for; null until storage has emitted once. */
+    val today: LocalDate? = null,
     /** Newest first. */
     val sessions: List<ReadingSession> = emptyList(),
     val form: SessionFormState = SessionFormState(),

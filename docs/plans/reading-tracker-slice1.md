@@ -2,7 +2,7 @@
 
 > Живий план для агентів. Джерело істини по поведінці — `docs/specs/reading-tracker.md`.
 > Читати разом з `AGENTS.md` і скілами `write-tests`, `book-fixtures`. Робота — строго за 5-фазним процесом.
-> Статус: **план погоджено. Implement — з Кроку 0 (спайк драйверів SQLDelight).**
+> Статус: **Кроки 0–8 реалізовано й закомічено; підсумкова звірка AC — нижче (Verify). Відкрите — «Після зрізу».**
 
 ## Скоуп Зрізу 1
 
@@ -10,9 +10,10 @@
 день читання з межею 04:00; статистика «сьогодні / за тиждень (рухоме 7-денне вікно) / всього / прогрес %»;
 список сесій; редагування й видалення; локальне збереження.
 
-**Повністю покриває AC:** 1–6, 9, 11, 12, 40, 47, 48, 50, 77–79, 81.
-**Частково покриває:** AC-13 і AC-49 — in-scope половину закриваємо тут, решта в Зрізі 2 (див. «Рішення 6»).
-Жоден частково покритий AC не вважається закритим.
+**Повністю покриває AC:** 1–6, 9, 11, 12, 40, 48, 50, 78, 81.
+**Частково покриває:** AC-13, 47, 49, 77, 79 — in-scope частину закриваємо тут, решта в наступних зрізах
+(див. «Рішення 6» і таблицю Verify). Жоден частково покритий AC не вважається закритим.
+AC-47, 77, 79 переведено з «повністю» в «частково» під час підсумкової звірки: їхній текст називає функції інших зрізів.
 
 **Поза Зрізом 1, не проєктуємо зараз:** денна ціль, активний день, streak, заморозки, дедлайн, темп,
 прогноз дочитання, дочитані книги, рекомендації. Структура має прийняти їх без переробки — як саме,
@@ -255,30 +256,37 @@ The Hobbit = `null` для AC-47.
 
 ## Verify — AC зі скоупу
 
-Статуси: **повністю** — AC закритий Зрізом 1; **частково** — перевірена лише in-scope половина,
-AC лишається відкритим до названого зрізу.
+Статуси: **повністю** — AC закритий Зрізом 1; **частково** — перевірена лише in-scope частина,
+AC лишається відкритим до названого зрізу. Статус визначається за **повним текстом AC у спеці**, а не за
+його скороченням у колонці «Суть».
 
-| AC | Суть | Чим перевіряємо | Статус |
+> Звірено після Кроку 8 з фактичним кодом і тестами (назви нижче — справжні).
+> Порівняно з першою редакцією таблиці: **AC-47, AC-77, AC-79 знижено до «частково»** — їхній текст
+> називає функції інших зрізів (прогноз; ціль, дедлайни, заморозки, дочитані книги, рекомендації),
+> тож за правилом «Рішення 6» закритими вони бути не можуть. AC-81 у першій редакції посилався на
+> тест, якого немає: його покриває конструкція стану, а не тест.
+
+| AC | Суть | Чим перевірено | Статус |
 |---|---|---|---|
-| AC-1 | 92→118 = 26 сторінок, закладка 118 | `ReadingStatsTest`: `pages`, `bookmarkOf` | повністю |
-| AC-2 | `до ≤ від` відхиляється | `ValidateSessionUseCaseTest`: `NotForward` для 118→118 і 118→90 | повністю |
-| AC-3 | день у майбутньому відхиляється | `ValidateSessionUseCaseTest`: `DayInFuture` при `day = today + 1` | повністю |
-| AC-4 | 92→118 + 118→140 = 48, закладка 140 | `ReadingStatsTest`: `pagesOn`, `bookmarkOf` | повністю |
-| AC-5 | правка 118→130 тягне всю статистику | `ReadingStatsTest` на зміненому списку + `ReadingSessionRepositoryImplTest.update` | повністю |
-| AC-6 | видалення повертає стан | `ReadingStatsTest`: статистика списку без сесії == статистика до її додавання | повністю |
-| AC-9 | час 22:10 записується сам | `ReadingViewModelTest` із фіксованим `Clock` → `recordedAt` = 22:10 | повністю |
-| AC-11 | 01:30 → попередня календарна доба | `ReadingDayTest` | повністю |
-| AC-12 | 04:30 → поточна доба | `ReadingDayTest` | повністю |
-| AC-13 | 23:00 і 02:00 — один день читання | `ReadingDayTest` — тотожність дня читання | **частково → Зріз 2** (streak +1, не +2) |
-| AC-40 | −6 днів у вікні, −7 поза ним | `ReadingStatsTest.pagesInWeek` на межах | повністю |
-| AC-47 | `totalPages = null` → прогрес прихований | `ReadingStatsTest.progressPercent` == `null`; порожнє поле у `BookDetailsForm` | повністю |
-| AC-48 | 118 з 300 → 39 % | `ReadingStatsTest.progressPercent` == 39; `totalPages` задається через `BookDetailsForm` | повністю |
-| AC-49 | наскрізність по трьох книгах | `BuildReadingSummaryUseCaseTest` на трьох фікстурах — «сьогодні / за тиждень / всього» | **частково → Зріз 2** (ціль, streak, запас заморозок) |
-| AC-50 | статистика оновлюється одразу | `ReadingViewModelTest`: після `onSave` стан містить нове зведення без ручного перезавантаження | повністю |
-| AC-77 | усе працює офлайн | Структурно: у графі трекера нема `HttpClient`. Перевірка — `ReadingViewModelTest` із fake-репозиторіями + ручний смоук у режимі польоту | повністю |
-| AC-78 | запис переживає закриття застосунку | `ReadingSessionRepositoryImplTest`: запис → закрити драйвер → відкрити файл заново → запис на місці | повністю (з поправкою з «Ризики» §4) |
-| AC-79 | статистика після перезапуску та сама | Той самий тест: зведення, пораховане з перечитаних із файлу сесій, збігається | повністю |
-| AC-81 | нема стану очікування мережі | У `ReadingUiState` немає статусу завантаження мережі; перевірка ревʼю + `ReadingViewModelTest` | повністю |
+| AC-1 | 92→118 = 26, закладка 118 | `ReadingStatsTest.sessionFromBookmarkCountsPagesBetweenBoundaries`; `ReadingViewModelTest.selectingBookStartsFromItsBookmark`, `newSessionIsStampedWithCurrentTime` (26 сторінок) | повністю |
+| AC-2 | `до ≤ від` відхиляється з поясненням, без запису | `ValidateSessionUseCaseTest.rejectsSessionThatEndsWhereItStarted`, `rejectsSessionThatEndsBeforeItStarted`; `ReadingViewModelTest.sessionThatDoesNotMoveForwardIsRejectedWithoutWriting` (0 записів). Текст пояснення — `SessionRejection.message()`, лише ревʼю | повністю |
+| AC-3 | день у майбутньому відхиляється | `ValidateSessionUseCaseTest.rejectsSessionDatedTomorrow`; UI не дає вибрати майбутній день (`SelectableDates`, ревʼю) | повністю |
+| AC-4 | 92→118 + 118→140 = 48, закладка 140 | `ReadingStatsTest.twoSessionsOnSameDayAddUp` | повністю |
+| AC-5 | правка 118→130 тягне всю статистику | `ReadingStatsTest.editedSessionIsReflectedInEveryStatistic`; `ReadingSessionRepositoryImplTest.updateReplacesStoredValues`; `ReadingViewModelTest.editedSessionIsUpdatedInPlace` | повністю |
+| AC-6 | видалення повертає стан | `ReadingSessionRepositoryImplTest.deleteRemovesOnlyThatSession`; `ReadingViewModelTest.deletedSessionDisappearsFromSummary`; `ReadingStatsTest.deletingSessionRestoresStatisticsFromBeforeIt` (для чистих функцій майже тавтологічний — основну вагу несуть перші два) | повністю |
+| AC-9 | час 22:10 записується сам | `ReadingViewModelTest.newSessionIsStampedWithCurrentTime`; збереження часу — `ReadingSessionRepositoryImplTest.storedSessionReadsBackFieldByField` | повністю |
+| AC-11 | 01:30 → попередня доба, у «сьогодні» цього дня читання | `ReadingDayTest.sessionAtHalfPastOneBelongsToPreviousDay`; `ReadingViewModelTest.sessionAfterMidnightCountsForPreviousDay` | повністю |
+| AC-12 | 04:30 → поточна доба | `ReadingDayTest.sessionAtHalfPastFourBelongsToSameDay`, `cutoffStartsNewDayExactlyAtFour`; перехід на літній час — `ReadingDayDaylightSavingTest` (jvm; перевірено мутантом) | повністю |
+| AC-13 | 23:00 і 02:00 — один день читання | `ReadingDayTest.lateEveningAndAfterMidnightAreOneReadingDay` | **частково → Зріз 2** (streak +1, не +2) |
+| AC-40 | −6 днів у вікні, −7 поза ним | `ReadingStatsTest.weekIncludesSixDaysAgoButNotSeven` | повністю |
+| AC-47 | обсяг невідомий → прогрес і прогноз приховані, решта працює | `ReadingStatsTest.progressIsHiddenWhenLengthIsUnknown`; `ReadingViewModelTest.clearingLengthHidesProgress`, `anyPageIsAcceptedWhenLengthIsUnknown`; `BuildReadingSummaryUseCaseTest.eachBookGetsItsOwnBookmarkAndProgress` | **частково → зріз із прогнозом** (прогнозу ще немає) |
+| AC-48 | 118 з 300 → 39 % | `ReadingStatsTest.progressIsWholePercentOfBookReached`; живий шлях — `ReadingViewModelTest.enteringLengthShowsProgress` + `BookDetailsForm`; вручну у браузері (39 %) | повністю |
+| AC-49 | наскрізність по трьох книгах | `BuildReadingSummaryUseCaseTest.pageTotalsSpanAllThreeBooks` | **частково → Зріз 2** (ціль, streak, заморозки, темп) |
+| AC-50 | статистика оновлюється одразу | `ReadingViewModelTest.summaryUpdatesRightAfterSave`; `ReadingSessionRepositoryImplTest.observersSeeNewSessionWithoutRereading`; вручну у браузері | повністю |
+| AC-77 | офлайн: запис, правка, видалення, статистика (+ функції інших зрізів) | Структурно: у `domain/reading`, `data/local`, `presentation/reading`, `ui/reading` немає жодного `io.ktor`/`HttpClient` (перевірено `grep`). **Ручної перевірки в режимі польоту не було** | **частково → наступні зрізи** (ціль, дедлайни, заморозки, дочитані, рекомендації) + ручний офлайн-смоук |
+| AC-78 | запис переживає закриття застосунку | `ReadingSessionRepositoryImplTest.sessionSurvivesClosingTheDatabase` (файл БД закрито й відкрито); `SchemaVersioningTest.secondStartLeavesExistingSchemaAlone`; вручну у браузері — перезавантаження сторінки | повністю — **на Android/iOS застосунок не запускався** |
+| AC-79 | після перезапуску статистика (+ ціль, дедлайни, заморозки) та сама | `ReadingSessionRepositoryImplTest.summaryIsIdenticalAfterReopening`; вручну у браузері | **частково → наступні зрізи** (ціль, дедлайни, запас заморозок) |
+| AC-81 | нема стану очікування мережі | Конструкцією: у `ReadingUiState` немає статусу завантаження, `ReadingScreen` не має індикатора, відкриття сховища (`StorageState.Opening`) нічого не малює. Автотесту немає — лише ревʼю | повністю |
 
 ### Достроково покрите — не зараховувати
 
@@ -295,6 +303,18 @@ AC лишається відкритим до названого зрізу.
 ./gradlew build
 ```
 Тест зелений — не написаний, а прогнаний (скіл write-tests).
+
+## Після зрізу — що лишилось відкритим
+
+- **Android та iOS не запускались.** Перевірено лише збірку й тести; AC-78 на цих платформах — ручна перевірка.
+- **Ручний офлайн-смоук (AC-77)** у режимі польоту — не проводився.
+- **Походження замка OPFS** на вебі не з'ясоване: помилку усунуло очищення пулу, лишеного попередніми запусками.
+  Якщо відтвориться — трекер покаже повідомлення, але сам не відновиться.
+- **Порт 8080** на вебі: і бекенд, і webpack dev-сервер претендують на нього. Бекенд треба запускати першим.
+- **Бекенд із дистрибутива** потребує Java 21+ (у `PATH` на машині розробника — 17).
+- **Флейки браузерних тестів під повною збіркою** (таймаут Chrome/Mocha) — пом'якшені конфігом karma; для CI (М8) варто перевірити окремо.
+- **Недоліки UX, свідомо відкладені:** видалення сесії без підтвердження чи undo; «сьогодні» не оновлюється о 04:00, поки застосунок відкритий.
+- **Пошук кирилицею** в Open Library часто порожній (назви транслітеровані) — окрема фіча.
 
 ## Запас на наступні зрізи
 

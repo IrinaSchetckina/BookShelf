@@ -25,8 +25,13 @@ private suspend fun SqlDriver.userVersion(): Long =
         identifier = null,
         sql = "PRAGMA user_version",
         mapper = { cursor ->
-            QueryResult.AsyncValue {
-                if (cursor.next().await()) cursor.getLong(0) ?: 0L else 0L
+            // Advance eagerly: synchronous drivers close the cursor as soon as the mapper returns,
+            // so a lazy AsyncValue would read a closed result set, see no row and report version 0.
+            when (val hasRow = cursor.next()) {
+                is QueryResult.Value -> QueryResult.Value(if (hasRow.value) cursor.getLong(0) ?: 0L else 0L)
+                is QueryResult.AsyncValue -> QueryResult.AsyncValue {
+                    if (hasRow.await()) cursor.getLong(0) ?: 0L else 0L
+                }
             }
         },
         parameters = 0,

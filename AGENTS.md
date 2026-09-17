@@ -52,7 +52,9 @@
 ## Команди
 - Бекенд: `JWT_SECRET=dev-secret ./gradlew :server:run` (localhost:8080; без секрету не стартує)
 - Web: `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
-- Android: запуск із IDE (`:app:androidApp`)
+- Android: запуск із IDE (`:app:androidApp`). Клієнт ходить на `http://127.0.0.1:8080`, тож перед запуском —
+  `adb reverse tcp:8080 tcp:8080` (для кожного пристрою, `-s <serial>`, і після кожного перепідключення);
+  так працюють і емулятор, і телефон по USB/Wi-Fi-налагодженню.
 - iOS: із Xcode/IDE (потрібен Xcode 26+)
 - Тести: `./gradlew :server:test :core:jvmTest :app:shared:testAndroidHostTest`; уся збірка + перевірки всіх таргетів — `./gradlew build`
 - Лінт/формат: `./gradlew ktlintCheck` (додамо в М6, якщо ще нема)

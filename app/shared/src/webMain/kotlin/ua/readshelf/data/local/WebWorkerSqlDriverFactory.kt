@@ -14,8 +14,17 @@ import app.cash.sqldelight.db.SqlSchema
  */
 class WebWorkerSqlDriverFactory : SqlDriverFactory {
 
-    override suspend fun create(schema: SqlSchema<QueryResult.AsyncValue<Unit>>): SqlDriver =
-        createReadShelfWorkerDriver().also { it.createOrMigrate(schema) }
+    override suspend fun create(schema: SqlSchema<QueryResult.AsyncValue<Unit>>): SqlDriver {
+        val driver = createReadShelfWorkerDriver()
+        try {
+            driver.createOrMigrate(schema)
+        } catch (error: Throwable) {
+            // Closing terminates the worker, which releases its exclusive OPFS lock for a retry.
+            driver.close()
+            throw error
+        }
+        return driver
+    }
 }
 
 /**

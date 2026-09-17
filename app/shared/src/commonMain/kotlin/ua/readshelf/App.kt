@@ -39,7 +39,8 @@ fun App(sqlDriverFactory: SqlDriverFactory) {
                     StorageState.Ready(AppContainer.openReadingStorage(sqlDriverFactory))
                 } catch (cancellation: CancellationException) {
                     throw cancellation
-                } catch (error: Exception) {
+                } catch (error: Throwable) {
+                    // Throwable, not Exception: the web driver's WebWorkerException extends Throwable directly.
                     StorageState.Failed(error.message)
                 }
             }

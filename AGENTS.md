@@ -60,8 +60,12 @@
 У `:core` jvm-таргет є — `:core:jvmTest` існує (звірено `./gradlew :core:tasks --all`).
 Залежності host-тестів `:app:shared` — лише через `getByName("androidHostTest").dependencies { }`:
 типізованого акцесора `androidHostTest` у DSL AGP-KMP-плагіна немає (падає на конфігурації).
-kotlin.daemon.jvmargs=6g у gradle.properties — потрібно для лінкування
-release-фреймворку iosArm64 (інакше OutOfMemoryError). Врахувати в CI (М8).
+Лінкування iOS-фреймворків (Kotlin/Native) за замовчуванням іде **в процесі Gradle daemon**
+(`kotlin.native.disableCompilerDaemon=false`), тож його пам'ять обмежує `org.gradle.jvmargs`,
+а не `kotlin.daemon.jvmargs`. На 4 ГБ повна збірка падала з OutOfMemoryError у
+`linkReleaseFramework*`; зараз 6 ГБ. Врахувати в CI (М8).
+Браузерні тести (karma) на холодному старті під повною збіркою не вкладаються в стандартні
+таймаути — вони підняті в `app/shared/karma.config.d/timeouts.js`.
 
 ## Робочий процес (5 фаз) — обовʼязково
 Будь-яку нетривіальну задачу веди фазами, не змішуючи їх:

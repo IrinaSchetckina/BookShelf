@@ -58,15 +58,18 @@ class ReadingViewModel(
     fun startTracking(book: Book) {
         if (books.any { it.bookKey == book.id }) return
         viewModelScope.launch {
-            bookRepository.upsert(
-                TrackedBook(
-                    bookKey = book.id,
-                    title = book.title,
-                    authors = book.authors,
-                    coverUrl = book.coverUrl,
-                    totalPages = null,
-                ),
-            )
+            // Caught, as every write here: an exception escaping viewModelScope crashes the app on Android.
+            runCatching {
+                bookRepository.upsert(
+                    TrackedBook(
+                        bookKey = book.id,
+                        title = book.title,
+                        authors = book.authors,
+                        coverUrl = book.coverUrl,
+                        totalPages = null,
+                    ),
+                )
+            }.onFailure { _state.update { it.copy(actionProblem = ActionProblem.TrackFailed) } }
         }
     }
 
@@ -145,25 +148,28 @@ class ReadingViewModel(
             // is dropped if storage fails or the app is closed mid-write.
             val saved = runCatching {
                 if (editing != null) {
-                    sessionRepository.update(
-                        editing.copy(
-                            fromPage = draft.fromPage,
-                            toPage = draft.toPage,
-                            day = draft.day,
-                            recordedAt = draft.recordedAt,
-                        ),
+                    val updated = editing.copy(
+                        fromPage = draft.fromPage,
+                        toPage = draft.toPage,
+                        day = draft.day,
+                        recordedAt = draft.recordedAt,
                     )
+                    sessionRepository.update(updated)
+                    updated
                 } else {
                     sessionRepository.add(draft)
                 }
             }
-            if (saved.isSuccess) {
-                // The stored bookmark may not have been observed yet, so account for this session too.
-                val bookmark = maxOf(bookmarkOf(sessions, bookKey), draft.toPage)
+            saved.onSuccess { stored ->
+                // Storage may not have re-emitted yet, so apply this save to the known list before
+                // reading the bookmark. Taking the maximum with the old list instead would keep a
+                // bookmark that an edit has just lowered, and prefill the next session from it.
+                val afterSave = sessions.filterNot { it.id == stored.id } + stored
+                val bookmark = bookmarkOf(afterSave, bookKey)
                 _state.update {
                     it.copy(form = SessionFormState(bookKey = bookKey, fromPage = bookmark.toString()))
                 }
-            } else {
+            }.onFailure {
                 updateForm { it.copy(isSaving = false, problem = FormProblem.SaveFailed) }
             }
         }
@@ -171,9 +177,15 @@ class ReadingViewModel(
 
     fun onDelete(sessionId: String) {
         viewModelScope.launch {
-            sessionRepository.delete(sessionId)
+            runCatching { sessionRepository.delete(sessionId) }
+                // Leave an edit of this session open until it is really gone.
+                .onSuccess { if (_state.value.form.editingId == sessionId) cancelEdit() }
+                .onFailure { _state.update { it.copy(actionProblem = ActionProblem.DeleteFailed) } }
         }
-        if (_state.value.form.editingId == sessionId) cancelEdit()
+    }
+
+    fun dismissActionProblem() {
+        _state.update { it.copy(actionProblem = null) }
     }
 
     /** A blank [text] marks the length as unknown, which hides progress for the book. */

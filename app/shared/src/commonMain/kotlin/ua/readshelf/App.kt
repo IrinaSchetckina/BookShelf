@@ -27,6 +27,8 @@ import ua.readshelf.di.AppContainer
 import ua.readshelf.di.ReadingStorage
 import ua.readshelf.presentation.reading.ReadingViewModel
 import ua.readshelf.ui.SearchScreen
+import ua.readshelf.presentation.reading.ActionProblem
+import ua.readshelf.ui.reading.ActionProblemRow
 import ua.readshelf.ui.reading.ReadingScreen
 
 /** [sqlDriverFactory] comes from the platform entry point: Android needs a Context to open a file. */
@@ -96,7 +98,16 @@ private fun SearchTab(readingViewModel: ReadingViewModel?) {
     }
     val readingState by readingViewModel.state.collectAsStateWithLifecycle()
     val trackedKeys = readingState.summary?.books.orEmpty().map { it.book.bookKey }.toSet()
-    SearchScreen(trackedBookKeys = trackedKeys, onTrack = readingViewModel::startTracking)
+    Column {
+        if (readingState.actionProblem == ActionProblem.TrackFailed) {
+            ActionProblemRow(
+                problem = ActionProblem.TrackFailed,
+                onDismiss = readingViewModel::dismissActionProblem,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+        SearchScreen(trackedBookKeys = trackedKeys, onTrack = readingViewModel::startTracking)
+    }
 }
 
 @Composable

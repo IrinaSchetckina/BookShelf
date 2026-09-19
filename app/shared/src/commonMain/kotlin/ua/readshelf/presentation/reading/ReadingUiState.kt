@@ -19,6 +19,8 @@ data class ReadingUiState(
     val form: SessionFormState = SessionFormState(),
     /** Set when a book length could not be saved; cleared by the next attempt. */
     val totalPagesProblem: TotalPagesProblem? = null,
+    /** Set when deleting a session or tracking a book failed; cleared when the reader dismisses it. */
+    val actionProblem: ActionProblem? = null,
 )
 
 data class SessionFormState(
@@ -43,6 +45,12 @@ sealed interface FormProblem {
 
     /** Storage refused the write; the form keeps what the reader typed. */
     data object SaveFailed : FormProblem
+}
+
+/** Failures of one-tap actions that have no form to report into. */
+enum class ActionProblem {
+    DeleteFailed,
+    TrackFailed,
 }
 
 enum class TotalPagesProblem {

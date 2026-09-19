@@ -5,7 +5,7 @@
 ## Модулі та відповідальність
 > Звір із фактичними `build.gradle.kts` кожного модуля; якщо назви інші — поправ тут.
 
-- `:core` — чистий Kotlin. Домен (`ua.readshelf.domain`: моделі, інтерфейси репозиторіїв, use-cases) і контракт нашого HTTP API (`ua.readshelf.contract`: `@Serializable` DTO), спільний для `:server` і клієнтів. Дозволені залежності: лише kotlinx-serialization і coroutines. Без Android/Ktor/Compose.
+- `:core` — чистий Kotlin. Домен (`ua.readshelf.domain`: моделі, інтерфейси репозиторіїв, use-cases) і контракт нашого HTTP API (`ua.readshelf.contract`: `@Serializable` DTO), спільний для `:server` і клієнтів. Дозволені залежності: лише kotlinx-serialization, coroutines і kotlinx-datetime (дати дня читання — чиста календарна арифметика). Без Android/Ktor/Compose.
 - `:app:shared` — спільний код клієнтів: presentation (ViewModels/стан), реалізації репозиторіїв, мережевий шар (Ktor Client), DI, спільний Compose UI.
 - `:app:androidApp` — тонка Android-точка входу.
 - `:app:webApp` — тонка Web точка входу; збирається під обидва таргети (Wasm і JS), спільний код у `webMain`.
@@ -25,6 +25,16 @@
 - DI: на `:server` — **Koin** (`serverModule()`, `Application.module(vararg overrides)`; тести
   підмінюють окремі визначення власним модулем). У `:app:shared` поки що ручний `AppContainer`.
 - БД (сервер): PostgreSQL + **Exposed**.
+- БД (клієнт): **SQLDelight** 2.1.0 у `:app:shared`, з `generateAsync = true` — `web-worker-driver`
+  (js/wasmJs) існує лише асинхронним. Наслідок для всіх таргетів, включно з Android та iOS:
+  згенерований API — **suspend скрізь** (`awaitAsList()`, `Schema.awaitCreate(driver)`);
+  синхронних викликів БД немає, `runBlocking` як обхід не використовуємо.
+  На вебі — власний воркер `readshelf-sqlite.worker.js` (`@sqlite.org/sqlite-wasm`, OPFS `opfs-sahpool`),
+  а не sql.js зі SQLDelight: той тримає БД у пам'яті. Обмеження: одна вкладка застосунку за раз.
+  Воркер і його npm-залежність живуть у `:app:webApp` (ресурси бібліотеки в бандл не потрапляють).
+  Фабрику драйвера передає точка входу: `App(sqlDriverFactory)`; сховище відкриває
+  `AppContainer.openReadingStorage` (suspend, один раз за процес).
+  Зовнішніх ключів із каскадом у схемі немає — пов'язані рядки видаляємо явно в транзакції.
 - Публічне API: Open Library (`https://openlibrary.org`), без ключа. Клієнти ходять НЕ напряму в Open Library, а тільки через наш `:server`.
 
 ## Архітектурні правила
@@ -42,7 +52,9 @@
 ## Команди
 - Бекенд: `JWT_SECRET=dev-secret ./gradlew :server:run` (localhost:8080; без секрету не стартує)
 - Web: `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
-- Android: запуск із IDE (`:app:androidApp`)
+- Android: запуск із IDE (`:app:androidApp`). Клієнт ходить на `http://127.0.0.1:8080`, тож перед запуском —
+  `adb reverse tcp:8080 tcp:8080` (для кожного пристрою, `-s <serial>`, і після кожного перепідключення);
+  так працюють і емулятор, і телефон по USB/Wi-Fi-налагодженню.
 - iOS: із Xcode/IDE (потрібен Xcode 26+)
 - Тести: `./gradlew :server:test :core:jvmTest :app:shared:testAndroidHostTest`; уся збірка + перевірки всіх таргетів — `./gradlew build`
 - Лінт/формат: `./gradlew ktlintCheck` (додамо в М6, якщо ще нема)
@@ -50,8 +62,15 @@
 ## Збірка
 `:app:shared` має таргети iosArm64, iosSimulatorArm64, js, wasmJs, android — **jvm немає**,
 тож задачі `:app:shared:jvmTest` не існує (спільні тести ганяємо через `testAndroidHostTest`).
-kotlin.daemon.jvmargs=6g у gradle.properties — потрібно для лінкування
-release-фреймворку iosArm64 (інакше OutOfMemoryError). Врахувати в CI (М8).
+У `:core` jvm-таргет є — `:core:jvmTest` існує (звірено `./gradlew :core:tasks --all`).
+Залежності host-тестів `:app:shared` — лише через `getByName("androidHostTest").dependencies { }`:
+типізованого акцесора `androidHostTest` у DSL AGP-KMP-плагіна немає (падає на конфігурації).
+Лінкування iOS-фреймворків (Kotlin/Native) за замовчуванням іде **в процесі Gradle daemon**
+(`kotlin.native.disableCompilerDaemon=false`), тож його пам'ять обмежує `org.gradle.jvmargs`,
+а не `kotlin.daemon.jvmargs`. На 4 ГБ повна збірка падала з OutOfMemoryError у
+`linkReleaseFramework*`; зараз 6 ГБ. Врахувати в CI (М8).
+Браузерні тести (karma) на холодному старті під повною збіркою не вкладаються в стандартні
+таймаути — вони підняті в `app/shared/karma.config.d/timeouts.js`.
 
 ## Робочий процес (5 фаз) — обовʼязково
 Будь-яку нетривіальну задачу веди фазами, не змішуючи їх:

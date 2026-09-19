@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -55,12 +56,15 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.ktor.clientOkhttp)
+            implementation(libs.sqldelight.androidDriver)
         }
         iosMain.dependencies {
             implementation(libs.ktor.clientDarwin)
+            implementation(libs.sqldelight.nativeDriver)
         }
         webMain.dependencies {
             implementation(libs.ktor.clientJs)
+            implementation(libs.sqldelight.webWorkerDriver)
         }
         commonMain.dependencies {
             api(project(":core"))
@@ -77,14 +81,31 @@ kotlin {
             implementation(libs.ktor.clientCore)
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.serializationJson)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutinesExtensions)
+            implementation(libs.sqldelight.asyncExtensions)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.ktor.clientMock)
         }
+        getByName("androidHostTest").dependencies {
+            implementation(libs.sqldelight.sqliteDriver)
+        }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
+        }
+    }
+}
+
+sqldelight {
+    databases {
+        create("ReadShelfDatabase") {
+            packageName.set("ua.readshelf.db")
+            // web-worker-driver is async-only; this makes the generated API suspend on every target.
+            generateAsync.set(true)
         }
     }
 }

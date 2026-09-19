@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "openlibrary": {
+      "command": "uv",
+      "args": ["run", "--directory", "mcp/openlibrary", "server.py"]
+    }
+  }
+}

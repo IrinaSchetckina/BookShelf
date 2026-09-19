@@ -24,5 +24,9 @@ kotlin {
 
             implementation(libs.compose.ui)
         }
+        webMain.dependencies {
+            // SQLite for readshelf-sqlite.worker.js, which ships with this app (see the worker file).
+            implementation(npm("@sqlite.org/sqlite-wasm", libs.versions.sqlite.wasm.get()))
+        }
     }
 }

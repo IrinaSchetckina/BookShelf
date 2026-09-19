@@ -1,0 +1,33 @@
+-- No REFERENCES ... ON DELETE CASCADE: SQLite enforces foreign keys only when each driver
+-- turns them on per connection, and INSERT OR REPLACE on the book would then wipe its
+-- sessions. Sessions of a removed book are deleted explicitly, in the same transaction.
+CREATE TABLE readingSessionEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    bookKey TEXT NOT NULL,
+    fromPage INTEGER NOT NULL,
+    toPage INTEGER NOT NULL,
+    -- ISO-8601 reading day (2026-09-16): readable when inspecting the database by hand.
+    day TEXT NOT NULL,
+    -- Epoch milliseconds; NULL when the time is unknown.
+    recordedAtMillis INTEGER
+);
+
+CREATE INDEX readingSessionEntity_bookKey ON readingSessionEntity(bookKey);
+
+selectAll:
+SELECT * FROM readingSessionEntity ORDER BY day, recordedAtMillis;
+
+insert:
+INSERT INTO readingSessionEntity(id, bookKey, fromPage, toPage, day, recordedAtMillis)
+VALUES (?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE readingSessionEntity
+SET bookKey = ?, fromPage = ?, toPage = ?, day = ?, recordedAtMillis = ?
+WHERE id = ?;
+
+deleteById:
+DELETE FROM readingSessionEntity WHERE id = ?;
+
+deleteByBook:
+DELETE FROM readingSessionEntity WHERE bookKey = ?;

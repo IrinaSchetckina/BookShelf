@@ -445,6 +445,83 @@ class ReadingViewModelTest {
         assertEquals(TODAY, today)
     }
 
+    // The prefill used the list from before the save, where the edited session still reached 130.
+    @Test
+    fun editThatLowersBookmarkStartsNextSessionFromNewBookmark() = runTest(testDispatcher) {
+        val earlier = session("s1", DUNE, fromPage = 0, toPage = 92, day = YESTERDAY)
+        val edited = session("s2", DUNE, fromPage = 92, toPage = 130, day = TODAY, recordedAt = TEN_PAST_TEN_PM)
+        val viewModel = viewModelWith(FakeReadingSessionRepository(listOf(earlier, edited)))
+        viewModel.startEdit(edited.id)
+
+        saveSession(viewModel, toPage = 118)
+
+        assertEquals("118", viewModel.state.value.form.fromPage)
+    }
+
+    // Before the fix the exception escaped viewModelScope, which crashes the app on Android.
+    @Test
+    fun failedDeleteKeepsSessionAndReportsIt() = runTest(testDispatcher) {
+        val kept = session("s1", DUNE, fromPage = 0, toPage = 92, day = YESTERDAY)
+        val sessions = FakeReadingSessionRepository(listOf(kept)).apply { failure = IllegalStateException("disk full") }
+        val viewModel = viewModelWith(sessions)
+
+        viewModel.onDelete(kept.id)
+        advanceUntilIdle()
+
+        assertEquals(listOf(kept), viewModel.state.value.sessions)
+        assertEquals(ActionProblem.DeleteFailed, viewModel.state.value.actionProblem)
+    }
+
+    @Test
+    fun failedDeleteLeavesEditOpen() = runTest(testDispatcher) {
+        val edited = session("s1", DUNE, fromPage = 92, toPage = 118, day = TODAY)
+        val sessions = FakeReadingSessionRepository(listOf(edited)).apply { failure = IllegalStateException("disk full") }
+        val viewModel = viewModelWith(sessions)
+        viewModel.startEdit(edited.id)
+
+        viewModel.onDelete(edited.id)
+        advanceUntilIdle()
+
+        assertEquals(edited.id, viewModel.state.value.form.editingId)
+    }
+
+    @Test
+    fun deletingEditedSessionClosesTheEdit() = runTest(testDispatcher) {
+        val edited = session("s1", DUNE, fromPage = 92, toPage = 118, day = TODAY)
+        val viewModel = viewModelWith(FakeReadingSessionRepository(listOf(edited)))
+        viewModel.startEdit(edited.id)
+
+        viewModel.onDelete(edited.id)
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.form.editingId)
+    }
+
+    @Test
+    fun failedTrackingLeavesBooksAsTheyWereAndReportsIt() = runTest(testDispatcher) {
+        val books = FakeTrackedBookRepository(emptyList()).apply { failure = IllegalStateException("disk full") }
+        val viewModel = viewModelWith(FakeReadingSessionRepository(), books)
+
+        viewModel.startTracking(DUNE_SEARCH_RESULT)
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), books.books.value)
+        assertEquals(ActionProblem.TrackFailed, viewModel.state.value.actionProblem)
+    }
+
+    @Test
+    fun dismissedActionProblemIsGone() = runTest(testDispatcher) {
+        val kept = session("s1", DUNE, fromPage = 0, toPage = 92, day = YESTERDAY)
+        val sessions = FakeReadingSessionRepository(listOf(kept)).apply { failure = IllegalStateException("disk full") }
+        val viewModel = viewModelWith(sessions)
+        viewModel.onDelete(kept.id)
+        advanceUntilIdle()
+
+        viewModel.dismissActionProblem()
+
+        assertNull(viewModel.state.value.actionProblem)
+    }
+
     @Test
     fun trackingAlreadyTrackedBookKeepsItsLength() = runTest(testDispatcher) {
         val books = FakeTrackedBookRepository(listOf(DUNE))

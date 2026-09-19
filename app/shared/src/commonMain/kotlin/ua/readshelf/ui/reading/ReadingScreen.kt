@@ -31,6 +31,7 @@ import kotlinx.datetime.TimeZone
 import ua.readshelf.domain.reading.BookProgress
 import ua.readshelf.domain.reading.ReadingSession
 import ua.readshelf.domain.reading.ReadingSummary
+import ua.readshelf.presentation.reading.ActionProblem
 import ua.readshelf.presentation.reading.ReadingUiState
 import ua.readshelf.presentation.reading.ReadingViewModel
 
@@ -55,6 +56,7 @@ fun ReadingScreen(
         },
         onEditSession = viewModel::startEdit,
         onDeleteSession = viewModel::onDelete,
+        onDismissActionProblem = viewModel::dismissActionProblem,
         formActions = SessionFormActions(
             onFromPageChange = viewModel::onFromPageChange,
             onToPageChange = viewModel::onToPageChange,
@@ -90,6 +92,7 @@ private fun ReadingScreenContent(
     onEditLength: (bookKey: String) -> Unit,
     onEditSession: (sessionId: String) -> Unit,
     onDeleteSession: (sessionId: String) -> Unit,
+    onDismissActionProblem: () -> Unit,
     formActions: SessionFormActions,
     modifier: Modifier = Modifier,
 ) {
@@ -103,6 +106,10 @@ private fun ReadingScreenContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        state.actionProblem?.let { problem ->
+            item(key = "action-problem") { ActionProblemRow(problem, onDismiss = onDismissActionProblem) }
+        }
+
         item { TotalsCard(summary) }
 
         if (summary.books.isEmpty()) {
@@ -150,6 +157,25 @@ private fun ReadingScreenContent(
             }
         }
     }
+}
+
+/** Shared with the search tab, where "Track" is pressed. */
+@Composable
+internal fun ActionProblemRow(problem: ActionProblem, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = problem.message(),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onDismiss) { Text("Dismiss") }
+    }
+}
+
+private fun ActionProblem.message(): String = when (this) {
+    ActionProblem.DeleteFailed -> "Could not delete the session. It is still saved; try again."
+    ActionProblem.TrackFailed -> "Could not start tracking the book. Try again."
 }
 
 @Composable

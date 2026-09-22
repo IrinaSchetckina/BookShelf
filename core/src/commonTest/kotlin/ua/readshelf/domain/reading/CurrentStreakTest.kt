@@ -271,7 +271,9 @@ class CurrentStreakTest {
 
     // --- Calendar and input order ---
 
-    // S21: consecutive dates, not 24-hour spans: 29 March 2026 is a 23-hour day in Kyiv.
+    // S21: day arithmetic around a clock change — adjacent dates stay adjacent. The input is plain
+    // LocalDate, so no time zone is involved here: sessions near 04:00 on the night of the change
+    // are placed by ReadingDay, and that is covered by ReadingDayDaylightSavingTest.
     @Test
     fun streakRunsAcrossTheSpringClockChange() {
         val sessions = listOf(28, 29, 30).map { session(LocalDate(2026, 3, it)) }
@@ -281,7 +283,7 @@ class CurrentStreakTest {
         assertEquals(3, streak)
     }
 
-    // S22: 25 October 2026 is a 25-hour day in Kyiv.
+    // S22: as S21, around the autumn clock change; date arithmetic only.
     @Test
     fun streakRunsAcrossTheAutumnClockChange() {
         val sessions = listOf(24, 25, 26).map { session(LocalDate(2026, 10, it)) }
@@ -301,7 +303,8 @@ class CurrentStreakTest {
         assertEquals(2, streak)
     }
 
-    // S24
+    // S24: guards against counting from the latest session instead of from today. A walk that
+    // starts at today never reaches later days, so this does not isolate the date filter itself.
     @Test
     fun sessionsAfterTodayAreIgnored() {
         val sessions = listOf(session(TODAY), session(TODAY.plus(1, DateTimeUnit.DAY)))

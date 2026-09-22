@@ -33,5 +33,32 @@ jobs:
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: test-reports
+          name: jvm-test-reports
+          path: '**/build/reports/tests/'
+
+  # A separate job, so a cold ChromeHeadless does not share the CPU with Android compilation:
+  # that contention is what used to break the Karma timeouts in the full build.
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - run: >-
+          ./gradlew
+          :core:jsBrowserTest :core:wasmJsBrowserTest
+          :app:shared:jsBrowserTest :app:shared:wasmJsBrowserTest
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-test-reports
           path: '**/build/reports/tests/'

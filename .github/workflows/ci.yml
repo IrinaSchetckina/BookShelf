@@ -62,3 +62,42 @@ jobs:
         with:
           name: web-test-reports
           path: '**/build/reports/tests/'
+
+  # Kotlin/Native simulator tests only run on macOS. Debug simulator binaries only: release
+  # framework linking is what ran out of memory before, and this runner has about 7 GB.
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      # The log records which Xcode versions the image really has; AGENTS.md requires 26+.
+      - name: Select Xcode 26.6
+        run: |
+          ls /Applications | grep Xcode
+          if ! xcodebuild -version | grep -q '^Xcode 26\.6$'; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app
+          fi
+          xcodebuild -version
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # The Kotlin/Native toolchain and its dependencies live outside ~/.gradle.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      - run: ./gradlew :core:iosSimulatorArm64Test :app:shared:iosSimulatorArm64Test
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-test-reports
+          path: '**/build/reports/tests/'

@@ -18,6 +18,9 @@ const val DEFAULT_MAX_FREEZES: Int = 2
  *   but keeps the chain going;
  * - the first inactive day with no freezes left ends the streak.
  *
+ * [today] must be the current reading day, `ReadingDay.of(now, zone)`, not the calendar date:
+ * between midnight and 04:00 the calendar date is a day ahead and would break a live streak.
+ *
  * The budget belongs to this call, not to stored state: the result is derived from [sessions]
  * alone, like every other reading statistic. Sessions after [today] are ignored.
  */

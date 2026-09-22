@@ -32,6 +32,18 @@ class ReadingFormattingTest {
         assertEquals("Yesterday", label)
     }
 
+    @Test
+    fun oneDayStreakIsSingular() {
+        assertEquals("day in a row", streakLabel(1))
+    }
+
+    @Test
+    fun otherStreakLengthsArePlural() {
+        assertEquals("days in a row", streakLabel(0))
+        assertEquals("days in a row", streakLabel(2))
+        assertEquals("days in a row", streakLabel(21))
+    }
+
     // The date picker works in UTC midnights; a zone-dependent conversion would shift the day.
     @Test
     fun pickerDateSurvivesTheRoundTrip() {

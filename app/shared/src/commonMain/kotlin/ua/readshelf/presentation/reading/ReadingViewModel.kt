@@ -21,6 +21,7 @@ import ua.readshelf.domain.reading.TrackedBook
 import ua.readshelf.domain.reading.TrackedBookRepository
 import ua.readshelf.domain.reading.ValidateSessionUseCase
 import ua.readshelf.domain.reading.bookmarkOf
+import ua.readshelf.domain.reading.currentStreak
 import kotlin.time.Clock
 
 class ReadingViewModel(
@@ -48,6 +49,7 @@ class ReadingViewModel(
                 it.copy(
                     summary = buildSummary(sessions, books, today),
                     today = today,
+                    streak = currentStreak(sessions, today),
                     sessions = sessions.asReversed(),
                 )
             }

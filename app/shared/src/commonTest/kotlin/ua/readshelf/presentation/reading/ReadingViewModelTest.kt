@@ -437,6 +437,48 @@ class ReadingViewModelTest {
     }
 
     @Test
+    fun streakCountsStoredActiveDays() = runTest(testDispatcher) {
+        val sessions = FakeReadingSessionRepository(
+            listOf(
+                session("s1", DUNE, fromPage = 0, toPage = 92, day = YESTERDAY),
+                session("s2", DUNE, fromPage = 92, toPage = 118, day = TODAY),
+            ),
+        )
+
+        val streak = viewModelWith(sessions).state.value.streak
+
+        assertEquals(2, streak)
+    }
+
+    // An empty today is a grace day (spec §5.8 rule 3), so a morning open does not break the streak.
+    @Test
+    fun streakSurvivesTodayWithoutReading() = runTest(testDispatcher) {
+        val sessions = FakeReadingSessionRepository(listOf(session("s1", DUNE, fromPage = 0, toPage = 92, day = YESTERDAY)))
+
+        val streak = viewModelWith(sessions).state.value.streak
+
+        assertEquals(1, streak)
+    }
+
+    @Test
+    fun streakGrowsRightAfterSave() = runTest(testDispatcher) {
+        val sessions = FakeReadingSessionRepository(listOf(session("s1", DUNE, fromPage = 0, toPage = 92, day = YESTERDAY)))
+        val viewModel = viewModelWith(sessions)
+        viewModel.selectBook(DUNE.bookKey)
+
+        saveSession(viewModel, toPage = 118)
+
+        assertEquals(2, viewModel.state.value.streak)
+    }
+
+    @Test
+    fun streakIsZeroWithoutSessions() = runTest(testDispatcher) {
+        val streak = viewModelWith(FakeReadingSessionRepository()).state.value.streak
+
+        assertEquals(0, streak)
+    }
+
+    @Test
     fun stateCarriesCurrentReadingDay() = runTest(testDispatcher) {
         clock.instant = at(2026, 9, 17, 1, 30)
 

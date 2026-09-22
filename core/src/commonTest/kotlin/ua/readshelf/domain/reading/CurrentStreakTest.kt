@@ -271,6 +271,15 @@ class CurrentStreakTest {
         }
     }
 
+    // S20, empty input: the budget is checked before anything else, so an early return for
+    // "no sessions" cannot hide an invalid call.
+    @Test
+    fun negativeFreezeBudgetIsRejectedWithoutSessions() {
+        assertFailsWith<IllegalArgumentException> {
+            currentStreak(emptyList(), TODAY, maxFreezes = -1)
+        }
+    }
+
     // --- Default budget of two ---
 
     // S27

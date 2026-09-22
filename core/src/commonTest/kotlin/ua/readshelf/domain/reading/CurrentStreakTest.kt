@@ -334,7 +334,9 @@ class CurrentStreakTest {
         assertEquals(1, streak)
     }
 
-    // S33: with only future sessions there is nothing to count, even with freezes to spend.
+    // S33: with only future sessions there is nothing to count. Like S24, this guards against
+    // counting from the latest session; it does not isolate the date filter, because a walk from
+    // today never reaches later days.
     @Test
     fun onlyFutureSessionsGiveNoStreak() {
         val sessions = listOf(session(TODAY.plus(1, DateTimeUnit.DAY)))

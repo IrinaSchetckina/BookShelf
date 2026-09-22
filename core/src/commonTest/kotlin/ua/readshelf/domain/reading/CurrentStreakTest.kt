@@ -133,6 +133,26 @@ class CurrentStreakTest {
         assertEquals(1, streak)
     }
 
+    // S29: the threshold is one page, so a single page is enough.
+    @Test
+    fun onePageMakesTheDayActive() {
+        val sessions = listOf(session(TODAY, pages = 1))
+
+        val streak = currentStreak(sessions, TODAY, maxFreezes = 0)
+
+        assertEquals(1, streak)
+    }
+
+    // S30: a zero-page session today leaves today inactive, which is grace, not a break.
+    @Test
+    fun zeroPageTodayIsStillGrace() {
+        val sessions = listOf(session(TODAY, pages = 0)) + activeOn(1)
+
+        val streak = currentStreak(sessions, TODAY, maxFreezes = 0)
+
+        assertEquals(1, streak)
+    }
+
     // S11 — the streak half of AC-13: 23:00 yesterday and 02:00 today are one reading day.
     @Test
     fun lateEveningAndAfterMidnightCountAsOneDay() {
@@ -211,6 +231,16 @@ class CurrentStreakTest {
         val streak = currentStreak(activeOn(0), TODAY, maxFreezes = 3)
 
         assertEquals(1, streak)
+    }
+
+    // S31: the walk is bounded by the earliest active day, not by the budget.
+    @Test
+    fun hugeFreezeBudgetStillEnds() {
+        val sessions = activeOn(0, 3650)
+
+        val streak = currentStreak(sessions, TODAY, maxFreezes = Int.MAX_VALUE)
+
+        assertEquals(2, streak)
     }
 
     // S20

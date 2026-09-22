@@ -153,6 +153,17 @@ class CurrentStreakTest {
         assertEquals(1, streak)
     }
 
+    // S32: activity is the day's total, not a property of each session: a zero-page session
+    // next to a real one does not spoil the day.
+    @Test
+    fun zeroPageSessionBesideARealOneLeavesTheDayActive() {
+        val sessions = listOf(session(TODAY, pages = 0), session(TODAY, pages = 5))
+
+        val streak = currentStreak(sessions, TODAY, maxFreezes = 0)
+
+        assertEquals(1, streak)
+    }
+
     // S11 — the streak half of AC-13: 23:00 yesterday and 02:00 today are one reading day.
     @Test
     fun lateEveningAndAfterMidnightCountAsOneDay() {
@@ -312,6 +323,16 @@ class CurrentStreakTest {
         val streak = currentStreak(sessions, TODAY, maxFreezes = 0)
 
         assertEquals(1, streak)
+    }
+
+    // S33: with only future sessions there is nothing to count, even with freezes to spend.
+    @Test
+    fun onlyFutureSessionsGiveNoStreak() {
+        val sessions = listOf(session(TODAY.plus(1, DateTimeUnit.DAY)))
+
+        val streak = currentStreak(sessions, TODAY, maxFreezes = 2)
+
+        assertEquals(0, streak)
     }
 
     // S25

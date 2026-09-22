@@ -244,6 +244,15 @@ class CurrentStreakTest {
         assertEquals(1, streak)
     }
 
+    // S34: the budget can run out before any active day is reached. Grace for today, a freeze
+    // for −1, and −2 has nothing left: the active day at −3 is out of reach.
+    @Test
+    fun freezesSpentBeforeReachingAnActiveDayGiveNoStreak() {
+        val streak = currentStreak(activeOn(3), TODAY, maxFreezes = 1)
+
+        assertEquals(0, streak)
+    }
+
     // S31: the walk is bounded by the earliest active day, not by the budget.
     @Test
     fun hugeFreezeBudgetStillEnds() {

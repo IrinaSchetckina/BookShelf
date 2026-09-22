@@ -14,6 +14,8 @@ data class ReadingUiState(
     val summary: ReadingSummary? = null,
     /** The reading day the summary was computed for; null until storage has emitted once. */
     val today: LocalDate? = null,
+    /** Current streak in active days (spec §5.8); null until storage has emitted once. */
+    val streak: Int? = null,
     /** Newest first. */
     val sessions: List<ReadingSession> = emptyList(),
     val form: SessionFormState = SessionFormState(),

@@ -27,6 +27,8 @@ internal fun dayLabel(day: LocalDate, today: LocalDate): String = when (day) {
     else -> day.toString()
 }
 
+internal fun streakLabel(days: Int): String = if (days == 1) "day in a row" else "days in a row"
+
 // The date picker speaks in UTC midnights, independent of the device time zone.
 internal fun LocalDate.toUtcEpochMillis(): Long = atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
 

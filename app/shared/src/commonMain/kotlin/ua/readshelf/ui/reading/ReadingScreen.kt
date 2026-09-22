@@ -36,7 +36,7 @@ import ua.readshelf.presentation.reading.ReadingUiState
 import ua.readshelf.presentation.reading.ReadingViewModel
 
 /**
- * The reading tracker: page totals, the tracked books, the session form and the session history.
+ * The reading tracker: page totals, the streak, the tracked books, the session form and the session history.
  * Everything here is backed by local storage, so there is no loading indicator.
  */
 @Composable
@@ -111,6 +111,7 @@ private fun ReadingScreenContent(
         }
 
         item { TotalsCard(summary) }
+        state.streak?.let { streak -> item(key = "streak") { StreakCard(streak) } }
 
         if (summary.books.isEmpty()) {
             item {

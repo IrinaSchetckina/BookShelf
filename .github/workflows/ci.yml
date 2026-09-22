@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core-jvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Matches gradle/gradle-daemon-jvm.properties (Java 21, Azul), so Gradle downloads no JDK.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - run: ./gradlew :core:jvmTest

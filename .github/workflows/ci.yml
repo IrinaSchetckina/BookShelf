@@ -2,11 +2,17 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
+# A newer push to the same branch or PR makes the running check obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  core-jvm:
-    runs-on: ubuntu-latest
+  jvm:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
@@ -16,4 +22,16 @@ jobs:
           distribution: zulu
           java-version: 21
 
-      - run: ./gradlew :core:jvmTest
+      # Only main writes the cache; PRs read it, so branches do not evict each other's entries.
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # No local.properties here: AGP finds the Android SDK through the runner's ANDROID_HOME.
+      - run: ./gradlew :core:jvmTest :server:test :app:shared:testAndroidHostTest
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'

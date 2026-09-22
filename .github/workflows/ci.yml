@@ -88,13 +88,23 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      # The Kotlin/Native toolchain and its dependencies live outside ~/.gradle.
-      - uses: actions/cache@v6
+      # The Kotlin/Native toolchain and its dependencies live outside ~/.gradle. Like the Gradle
+      # cache, every branch reads it and only main writes it: a PR entry (~415 MB) would be
+      # visible to that PR alone and eat into the repository's 10 GB cache limit.
+      - id: konan
+        uses: actions/cache/restore@v6
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
 
       - run: ./gradlew :core:iosSimulatorArm64Test :app:shared:iosSimulatorArm64Test
+
+      # An exact hit is already stored under this key; saving it again would only warn.
+      - if: github.ref == 'refs/heads/main' && steps.konan.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan.outputs.cache-primary-key }}
 
       - if: failure()
         uses: actions/upload-artifact@v7

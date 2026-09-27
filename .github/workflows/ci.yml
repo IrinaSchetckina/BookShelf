@@ -63,6 +63,31 @@ jobs:
           name: web-test-reports
           path: '**/build/reports/tests/'
 
+  # Mutation testing of the reading domain. Separate from jvm: it reruns those tests once per
+  # mutant, and pitest fails the task itself when the score drops below its threshold.
+  mutation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - run: ./gradlew :core:pitest
+
+      # The HTML report names every surviving mutant, which the log does not.
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: core/build/reports/pitest/
+
   # Kotlin/Native simulator tests only run on macOS. Debug simulator binaries only: release
   # framework linking is what ran out of memory before, and this runner has about 7 GB.
   ios:

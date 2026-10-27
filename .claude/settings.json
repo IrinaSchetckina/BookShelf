@@ -1,29 +1,13 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/reading-tests.sh",
-            "timeout": 180,
-            "statusMessage": "Running :core reading tests…"
-          }
-        ]
+  "extraKnownMarketplaces": {
+    "schetckina-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "IrinaSchetckina/spec-guard"
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/reading-tests-on-stop.sh",
-            "timeout": 300,
-            "statusMessage": "Final check: reading tests (:core + :app:shared)…"
-          }
-        ]
-      }
-    ]
+    }
+  },
+  "enabledPlugins": {
+    "spec-guard@schetckina-plugins": true
   }
 }

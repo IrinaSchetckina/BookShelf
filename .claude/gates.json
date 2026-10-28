@@ -1,0 +1,24 @@
+{
+  "gates": [
+    {
+      "name": "reading domain (:core)",
+      "on": ["edit", "stop"],
+      "paths": ["core/src/*/kotlin/ua/readshelf/domain/reading/*.kt"],
+      "command": "./gradlew :core:jvmTest --tests 'ua.readshelf.domain.reading.*'",
+      "errorPattern": " FAILED$|AssertionError|expected:|^e: |No tests found|What went wrong"
+    },
+    {
+      "name": "reading clients (:app:shared)",
+      "on": ["stop"],
+      "paths": [
+        "app/shared/src/*/kotlin/ua/readshelf/data/local/*.kt",
+        "app/shared/src/*/kotlin/ua/readshelf/presentation/reading/*.kt",
+        "app/shared/src/*/kotlin/ua/readshelf/ui/reading/*.kt",
+        "app/shared/src/*/kotlin/ua/readshelf/di/*.kt",
+        "app/shared/src/commonMain/sqldelight/ua/readshelf/db/*.sq"
+      ],
+      "command": "./gradlew :app:shared:testAndroidHostTest --tests 'ua.readshelf.data.local.*' --tests 'ua.readshelf.presentation.reading.*' --tests 'ua.readshelf.ui.reading.*' --tests 'ua.readshelf.di.*'",
+      "errorPattern": " FAILED$|AssertionError|expected:|^e: |No tests found|What went wrong"
+    }
+  ]
+}

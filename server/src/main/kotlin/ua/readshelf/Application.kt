@@ -28,7 +28,7 @@ import ua.readshelf.routes.meRoute
 import ua.readshelf.routes.searchRoutes
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = { module() })
+    embeddedServer(Netty, port = serverPortFromEnv(), host = "0.0.0.0", module = { module() })
         .start(wait = true)
 }
 

@@ -1,0 +1,12 @@
+# Only server/build/libs/*-all.jar is needed; everything else would bloat the build context.
+.git
+.gradle
+.kotlin
+.idea
+**/build
+!server/build/libs
+local.properties
+kotlin-js-store
+app/iosApp
+docs
+.claude

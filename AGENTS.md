@@ -10,7 +10,8 @@
 - `:app:androidApp` — тонка Android-точка входу.
 - `:app:webApp` — тонка Web точка входу; збирається під обидва таргети (Wasm і JS), спільний код у `webMain`.
 - `app/iosApp` — Xcode-проєкт, точка входу iOS (не Gradle-модуль).
-- `:server` — Ktor-бекенд: проксі до Open Library, авторизація, полиці, PostgreSQL.
+- `:server` — Ktor-бекенд: проксі до Open Library, авторизація. Стейтлес: жодної БД у
+  залежностях, користувачі в памʼяті (PostgreSQL — намір, не реалізоване).
   Авторизація: JWT, секрет із env `JWT_SECRET` (без нього сервер не стартує), паролі — BCrypt
   (хешування — у `Dispatchers.Default`, не на потоках запиту),
   користувачі поки що in-memory. Серверні типи з паролем (`UserRecord`, `UserRepository`) живуть
@@ -24,7 +25,8 @@
 - Асинхрон: coroutines + Flow. Ніяких блокуючих викликів у UI/у suspend-контексті.
 - DI: на `:server` — **Koin** (`serverModule()`, `Application.module(vararg overrides)`; тести
   підмінюють окремі визначення власним модулем). У `:app:shared` поки що ручний `AppContainer`.
-- БД (сервер): PostgreSQL + **Exposed**.
+- БД (сервер): **поки немає** — ні Exposed, ні драйвера в залежностях `:server`.
+  PostgreSQL + Exposed лишається планом; поки що сховище користувачів — in-memory.
 - БД (клієнт): **SQLDelight** 2.1.0 у `:app:shared`, з `generateAsync = true` — `web-worker-driver`
   (js/wasmJs) існує лише асинхронним. Наслідок для всіх таргетів, включно з Android та iOS:
   згенерований API — **suspend скрізь** (`awaitAsList()`, `Schema.awaitCreate(driver)`);
@@ -100,6 +102,45 @@
 - Що саме перевірено: плагін витягується за координатами з `.claude/settings.json` —
   доведено headless-ізоляцією (чистий `HOME` і власний кеш плагінів). Прийняття
   trust-діалогу автоматично не перевіряється: це крок, який підтверджують руками.
+
+## Деплой (M8)
+
+Бекенд — Fly.io (`readshelf-api.fly.dev`), веб — Cloudflare Pages
+(`readshelf.pages.dev`). БД немає: бекенд стейтлес, користувачі в памʼяті й
+зникають при рестарті, а полиці живуть у клієнтському SQLDelight.
+
+- **`JWT_SECRET` — тільки `fly secrets set`.** Ніколи у `fly.toml`, `Dockerfile`,
+  CI-yaml чи репозиторії. `CORS_ALLOWED_ORIGINS` — навпаки, звичайний env у
+  `fly.toml`: це не секрет, і видно, який origin пускає API.
+- **Порт** читається з `PORT` (`ServerConfig.kt`), дефолт 8080. Непридатне
+  значення зупиняє старт: платформа стукає health-check у впорснутий порт, і
+  тихо сісти на інший означає недосяжний сервіс без причини в лозі.
+- **URL бекенду для вебу** фіксується на збірці:
+  `./gradlew :app:webApp:wasmJsBrowserDistribution -PapiBaseUrl=https://readshelf-api.fly.dev`
+  (без прапорця — `http://localhost:8080`). Файл `ApiConfig.web.kt` **генерується**,
+  редагувати його немає сенсу.
+- **Образ не збирає проєкт усередині.** `:server` тягне `:core`, а це KMP-модуль з
+  Android-таргетом, тож конфігурація вимагала б Android SDK. Спершу
+  `./gradlew :server:buildFatJar`, тоді `fly deploy` — `Dockerfile` лише копіює jar.
+  Запуск jar локально потребує **Java 21**: `java` на PATH може бути старішим.
+
+**Порядок деплою** (розриває циклічну залежність «веб знає URL бекенду ↔ бекенд
+знає origin вебу»): обидва імені резервуються **до** будь-якої збірки, бо адреси
+детерміновані.
+
+1. `fly launch --no-deploy` — резервує `readshelf-api`
+2. `wrangler pages project create readshelf` — резервує `readshelf.pages.dev`
+3. `fly secrets set JWT_SECRET=…`
+4. `./gradlew :server:buildFatJar` → `fly deploy`
+5. `./gradlew :app:webApp:wasmJsBrowserDistribution -PapiBaseUrl=https://readshelf-api.fly.dev`
+6. `wrangler pages deploy`
+7. `scripts/smoke.sh https://readshelf-api.fly.dev https://readshelf.pages.dev`
+
+Імʼя, зайняте на кроці 1–2, міняємо там же — до збірок, тож ребілду не буде.
+
+**Критерій готовності:** усі 8 перевірок smoke зелені **і** Safari-persist
+перевірений на задеплоєному демо (після спайку це лишилось єдиним недоведеним) —
+до того, як лінк кудись піде.
 
 ## Робочий процес (5 фаз) — обовʼязково
 Будь-яку нетривіальну задачу веди фазами, не змішуючи їх:
